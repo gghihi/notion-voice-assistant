@@ -1,7 +1,54 @@
 // 網頁主程式。這裡沒有任何金鑰：只存一張 30 天到期的通行證在這台裝置。
 const API = location.hostname === 'localhost' ? 'http://localhost:8787' : window.APP_CONFIG.API;
 const $ = (id) => document.getElementById(id);
-const msg = (t) => { $('msg').textContent = t; };
+// 訊息小卡：從下方滑出，幾秒後自動收起；成功（✅）時放個小慶祝
+let msgTimer;
+const msg = (t) => {
+  const m = $('msg');
+  clearTimeout(msgTimer);
+  if (!t) { m.classList.remove('show'); return; }
+  m.textContent = t;
+  m.classList.toggle('ok', t.startsWith('✅'));
+  m.classList.add('show');
+  if (t.startsWith('✅')) celebrate();
+  if (!/中…/.test(t)) msgTimer = setTimeout(() => m.classList.remove('show'), t.startsWith('✅') ? 4000 : 6000);
+};
+function celebrate() {
+  const pool = ['🎉', '✨', '🌟', '💛', '🥳', '👏', '🍀', '🎈'];
+  const box = $('burst');
+  for (let i = 0; i < 14; i++) {
+    const e = document.createElement('i');
+    e.textContent = pool[Math.floor(Math.random() * pool.length)];
+    e.style.left = 10 + Math.random() * 80 + '%';
+    e.style.setProperty('--x', (Math.random() * 160 - 80) + 'px');
+    e.style.setProperty('--r', (Math.random() * 360 - 180) + 'deg');
+    e.style.animationDelay = Math.random() * .25 + 's';
+    box.append(e);
+    setTimeout(() => e.remove(), 1700);
+  }
+  navigator.vibrate?.(30);
+}
+
+// 打招呼：依時段換一句，每次打開都不太一樣
+(function greet() {
+  const h = new Date().getHours();
+  const sets = h < 5 ? ['夜深了，記完就去睡吧 🌙', '熬夜的靈感最珍貴 ✨']
+    : h < 11 ? ['早安！今天也要元氣滿滿 ☀️', '早安，先把腦中的點子倒出來吧 🍳', '新的一天，從記一筆開始 🌱']
+    : h < 14 ? ['午安！吃飽了嗎？🍱', '中午好，休息一下也能記點子 🍵']
+    : h < 18 ? ['下午好，來點靈感吧 🍰', '午後時光，整理一下想法 📚', '加油，今天快完成了 💪']
+    : ['晚安～今天辛苦了 🌆', '晚上好，回顧一下今天吧 🛋️', '收工前，把待辦交給我 ✅'];
+  $('greet').textContent = sets[Math.floor(Math.random() * sets.length)];
+})();
+// 點頁面圖示換個心情
+const ICONS = ['✏️', '🐣', '🌈', '🍀', '🚀', '🎧', '🌻', '🦄', '🍩', '🐳', '🔮', '🎨'];
+$('pageIcon').onclick = () => {
+  const el = $('pageIcon');
+  el.textContent = ICONS[(ICONS.indexOf(el.textContent) + 1) % ICONS.length];
+  el.classList.remove('spin'); void el.offsetWidth; el.classList.add('spin');
+  try { localStorage.setItem('icon', el.textContent); } catch {}
+};
+try { const ic = localStorage.getItem('icon'); if (ic) $('pageIcon').textContent = ic; } catch {}
+document.body.dataset.tab = 'note';
 
 function getToken() { try { return localStorage.getItem('token'); } catch { return null; } }
 function setToken(t) { try { t ? localStorage.setItem('token', t) : localStorage.removeItem('token'); } catch {} }
@@ -67,6 +114,7 @@ function panel(db) {
 document.querySelectorAll('.tab').forEach((t) => {
   t.onclick = () => {
     document.querySelectorAll('.tab').forEach((x) => x.classList.toggle('on', x === t));
+    document.body.dataset.tab = t.dataset.tab;
     $('tab-note').hidden = t.dataset.tab !== 'note';
     $('tab-plan').hidden = t.dataset.tab !== 'plan';
     $('tab-video').hidden = t.dataset.tab !== 'video';
