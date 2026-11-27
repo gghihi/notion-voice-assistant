@@ -92,10 +92,11 @@ window.Sound = (() => {
     while (nextAt < ctx.currentTime + 0.25) {
       const s = step % 16, bar = PROG[Math.floor(step / 16) % PROG.length], t = nextAt;
       if (s % 4 === 0) kick(t);                                             // 四拍大鼓
-      if (s % 4 === 2) hit(t - ctx.currentTime, 0.05, 0.12, 'highpass', 8000, bus); // 反拍 hi-hat
-      if (s === 4 || s === 12) hit(t - ctx.currentTime, 0.18, 0.18, 'bandpass', 1800, bus, 0.8); // 拍手
+      if (s % 4 === 2) hit(t - ctx.currentTime, 0.04, 0.07, 'highpass', 9000, bus); // 反拍 hi-hat（輕一點）
+      if (s === 4 || s === 12) hit(t - ctx.currentTime, 0.12, 0.1, 'bandpass', 1500, bus, 1); // 拍手（柔一點）
       if (BASS[s]) tone(bar.bass * BASS[s], t, STEP * 1.6, 0.22, 'triangle');   // 跳動貝斯
       if (s === 0 || s === 6 || s === 10) bar.chord.forEach((f) => tone(f, t, STEP * (s === 0 ? 5 : 3), 0.045, 'sine')); // 切分和弦
+      if (Math.random() < 0.06) hit(t - ctx.currentTime + Math.random() * STEP, 0.008, 0.05, 'bandpass', 1500 + Math.random() * 2000, bus, 2); // 黑膠偶爾的「啵」
       nextAt += STEP; step++;
     }
   }
@@ -104,18 +105,12 @@ window.Sound = (() => {
     bus = c.createGain(); bus.gain.value = 0.32;
     const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2200; // lo-fi 悶悶的感覺
     bus.connect(lp); lp.connect(master);
-    // 黑膠沙沙聲
-    crackle = noise(); crackle.loop = true;
-    const cf = c.createBiquadFilter(), cg = c.createGain();
-    cf.type = 'highpass'; cf.frequency.value = 4000; cg.gain.value = 0.015;
-    crackle.connect(cf); cf.connect(cg); cg.connect(master); crackle.start();
     step = 0; nextAt = c.currentTime + 0.1;
     schedule(); bgmTimer = setInterval(schedule, 100);
   }
   function stopBgm() {
     clearInterval(bgmTimer); bgmTimer = null;
     if (bus) { bus.disconnect(); bus = null; }
-    if (crackle) { crackle.stop(); crackle = null; }
   }
 
   // 瀏覽器規定要使用者先點一下才能出聲：第一次點擊時才啟動配樂
