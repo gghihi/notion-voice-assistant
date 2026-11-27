@@ -53,11 +53,11 @@ export async function checkDataSources(env) {
 }
 
 // 快速筆記 → 工作專案規劃 新版，專案狀態預設「點子階段」
-export async function createNote(env, text, extra = {}, templateId) {
+export async function createNote(env, text, extra = {}, templateId, title) {
   const body = {
     parent: { type: 'data_source_id', data_source_id: env.NOTES_DS },
     properties: {
-      Title: { title: [{ type: 'text', text: { content: noteTitle(text) } }] },
+      Title: { title: [{ type: 'text', text: { content: (title && String(title).trim().slice(0, 200)) || noteTitle(text) } }] },
       專案狀態: { select: { name: '點子階段' } },
       ...extra,
     },

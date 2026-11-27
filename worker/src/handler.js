@@ -64,7 +64,7 @@ export default {
         if (text.length > MAX_TEXT) return json({ error: '內容太長（上限 5000 字）' }, 400, h);
         const tpl = await checkTemplate(env, 'projects', body.templateId);
         if (tpl === false) return json({ error: '找不到這個範本，請重新整理' }, 400, h);
-        return json(await createNote(env, text, toNotionProps('projects', body.props), tpl), 200, h);
+        return json(await createNote(env, text, toNotionProps('projects', body.props), tpl, body.title), 200, h);
       }
       if (url.pathname === '/api/vapid' && req.method === 'GET') {
         return json({ key: env.VAPID_PUBLIC_KEY || null }, 200, h);

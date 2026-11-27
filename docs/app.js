@@ -38,11 +38,20 @@ $('checkBtn').onclick = async (e) => {
   catch (err) { msg(err.message); }
 };
 
+// 專案庫：先跳出確認卡（標題、欄位、範本），確認後才送出
+$('noteNextBtn').onclick = () => {
+  const text = $('text').value.trim();
+  if (!text) return msg('先寫點東西吧');
+  $('noteTitle').value = text.split('\n')[0].slice(0, 40);
+  $('noteForm').hidden = false;
+  panel('projects'); loadTemplates('projects');
+  msg('選好欄位後按「確認送出」');
+};
 $('saveBtn').onclick = async () => {
   const text = $('text').value.trim();
   if (!text) return msg('先寫點東西吧');
   $('saveBtn').disabled = true; msg(tplWait('projects'));
-  try { await api('/api/note', { text, props: panels.projects ? panels.projects.collect() : undefined, templateId: $('tpl-projects').value }); $('text').value = ''; panels.projects?.reset(); msg('✅ 已存到「專案庫」（工作專案規劃 新版），打開 Notion 就看得到'); }
+  try { await api('/api/note', { text, title: $('noteTitle').value, props: panels.projects ? panels.projects.collect() : undefined, templateId: $('tpl-projects').value }); $('text').value = ''; $('noteForm').hidden = true; panels.projects?.reset(); msg('✅ 已存到「專案庫」（工作專案規劃 新版），打開 Notion 就看得到'); }
   catch (e) { msg(e.message); }
   finally { $('saveBtn').disabled = false; }
 };
@@ -53,7 +62,6 @@ function panel(db) {
   const defaults = { projects: { 專案狀態: '點子階段' }, tasks: {}, knowledge: { 知識庫性質: '課堂筆記', 觀看性質: '想看' } }[db];
   return (panels[db] ||= FieldPanel(db, $('fields-' + db), defaults));
 }
-document.querySelector('details.more').addEventListener('toggle', (e) => { if (e.target.open) panel('projects'); });
 
 // 分頁切換
 document.querySelectorAll('.tab').forEach((t) => {
@@ -98,7 +106,7 @@ $('parseBtn').onclick = async () => {
     $('planAt').value = r.at ? toLocalInput(r.at) : '';
     $('planForm').hidden = false;
     panel('tasks'); loadTemplates('tasks');
-    msg(r.at ? '請確認內容，沒問題就按「存到 Notion」' : '沒聽出時間，請在「時間」欄自己選');
+    msg(r.at ? '請確認內容，沒問題就按「確認送出」' : '沒聽出時間，請在「時間」欄自己選');
   } catch (e) { msg(e.message); }
 };
 
@@ -157,7 +165,7 @@ $('videoPreviewBtn').onclick = async () => {
     kp.set('上傳日期', r.uploadDate || '');
     kp.set('課堂筆記通路', r.platform === 'IG' ? 'IG' : 'YouTube');
     kp.set('相關連結', r.url);
-    msg(r.title ? '確認一下，沒問題就按「存到知識庫」' : '抓不到標題（IG 常擋），可以自己填，或直接存');
+    msg(r.title ? '確認一下，沒問題就按「確認送出」' : '抓不到標題（IG 常擋），可以自己填，或直接存');
   } catch (e) { msg(e.message); }
 };
 // 範本清單：每個資料庫第一次用到時讀取。知識庫預設「課堂筆記模板」，其他用 Notion 設的預設範本

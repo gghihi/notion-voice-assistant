@@ -35,10 +35,14 @@
       <textarea id="text" rows="6" placeholder="專案點子或規劃，打字或按麥克風用說的"></textarea>
       <div class="row">
         <button class="ghost mic" data-for="text">🎤 說話</button>
-        <button id="saveBtn">存到 Notion</button>
+        <button id="noteNextBtn">下一步：確認欄位</button>
       </div>
-      <label class="tpl">資料庫範本<select id="tpl-projects"><option value="">不用範本</option></select></label>
-      <details class="more"><summary>更多欄位（專案狀態、種類、執行日期…）</summary><div class="fields" id="fields-projects"></div></details>
+      <div id="noteForm" class="card" hidden>
+        <label>標題<input id="noteTitle"></label>
+        <div class="fields" id="fields-projects"></div>
+        <label>資料庫範本<select id="tpl-projects"><option value="">不用範本</option></select></label>
+        <button id="saveBtn">確認送出</button>
+      </div>
     </div>
 
     <div id="tab-plan" hidden>
@@ -62,7 +66,7 @@
         </label>
         <div class="fields" id="fields-tasks"></div>
         <label>資料庫範本<select id="tpl-tasks"><option value="">不用範本</option></select></label>
-        <button id="planSaveBtn">存到 Notion</button>
+        <button id="planSaveBtn">確認送出</button>
       </div>
       <p class="small" id="pushRow"><button id="pushBtn" class="ghost">🔔 開啟提醒通知</button> <a href="#" id="pushTestBtn">送一則測試通知</a></p>
     </div>
@@ -79,7 +83,7 @@
         <label>資料庫範本
           <select id="tpl-knowledge"><option value="">（讀取中…）</option></select>
         </label>
-        <button id="videoSaveBtn">存到知識庫</button>
+        <button id="videoSaveBtn">確認送出</button>
       </div>
       <p id="videoDone" hidden><a id="videoOpen" href="#" target="_blank" rel="noopener">👉 打開 Notion 查看</a></p>
     </div>
