@@ -42,7 +42,7 @@ $('saveBtn').onclick = async () => {
   const text = $('text').value.trim();
   if (!text) return msg('先寫點東西吧');
   $('saveBtn').disabled = true; msg('存檔中…');
-  try { await api('/api/note', { text }); $('text').value = ''; msg('✅ 已存到「工作專案規劃 新版」，打開 Notion 就看得到'); }
+  try { await api('/api/note', { text }); $('text').value = ''; msg('✅ 已存到「專案庫」（工作專案規劃 新版），打開 Notion 就看得到'); }
   catch (e) { msg(e.message); }
   finally { $('saveBtn').disabled = false; }
 };
@@ -82,7 +82,7 @@ function toLocalInput(ts) { const d = new Date(ts); return `${d.getFullYear()}-$
 
 $('parseBtn').onclick = async () => {
   const text = $('planText').value.trim();
-  if (!text) return msg('先說或打一句行程吧');
+  if (!text) return msg('先說或打一句任務吧');
   msg('理解中…');
   try {
     const r = await api('/api/schedule/parse', { text });
@@ -101,7 +101,7 @@ $('planSaveBtn').onclick = async () => {
   try {
     await api('/api/schedule', { title: $('planTitle').value, at, remind: before >= 0, remindBefore: Math.max(before, 0) });
     $('planText').value = ''; $('planForm').hidden = true;
-    msg('✅ 已存到「所有任務清單」' + (before >= 0 ? '，時間到會通知你' : ''));
+    msg('✅ 已存到「任務庫」（所有任務清單）' + (before >= 0 ? '，時間到會通知你' : ''));
   } catch (e) { msg(e.message); }
   finally { $('planSaveBtn').disabled = false; }
 };

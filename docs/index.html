@@ -26,13 +26,13 @@
 
   <section id="app" hidden>
     <div class="tabs">
-      <button class="tab on" data-tab="note">📝 筆記</button>
-      <button class="tab" data-tab="plan">📅 日程</button>
-      <button class="tab" data-tab="video">🎬 影片</button>
+      <button class="tab on" data-tab="note">📁 專案庫</button>
+      <button class="tab" data-tab="plan">✅ 任務庫</button>
+      <button class="tab" data-tab="video">📚 知識庫</button>
     </div>
 
     <div id="tab-note">
-      <textarea id="text" rows="6" placeholder="打字，或按麥克風用說的"></textarea>
+      <textarea id="text" rows="6" placeholder="專案點子或規劃，打字或按麥克風用說的"></textarea>
       <div class="row">
         <button class="ghost mic" data-for="text">🎤 說話</button>
         <button id="saveBtn">存到 Notion</button>
@@ -40,7 +40,7 @@
     </div>
 
     <div id="tab-plan" hidden>
-      <textarea id="planText" rows="3" placeholder="例如：明天下午3點開會"></textarea>
+      <textarea id="planText" rows="3" placeholder="例如：明天下午3點開會、2分鐘後提醒我喝水"></textarea>
       <div class="row">
         <button class="ghost mic" data-for="planText">🎤 說話</button>
         <button id="parseBtn">看懂這句</button>
