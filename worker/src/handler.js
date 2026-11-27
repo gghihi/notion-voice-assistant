@@ -1,6 +1,6 @@
 // 後端入口：只開放少數幾個網址，每個（除了登入）都要有效通行證。
 import { checkPassword, issueToken, verifyToken } from './auth.js';
-import { checkDataSources, createNote, createTask, createPage } from './notion.js';
+import { checkDataSources, createNote, createTask, createPage, listTemplates, createPageWithTemplate } from './notion.js';
 import { detect, fetchInfo, buildPage } from './video.js';
 import { parseWhen, twIso } from './when.js';
 
@@ -90,6 +90,9 @@ export default {
         if (!v) return json({ error: '看不懂這個網址，目前支援 YouTube 和 Instagram' }, 400, h);
         return json({ ...v, ...(await fetchInfo(v)) }, 200, h);
       }
+      if (url.pathname === '/api/video/templates' && req.method === 'GET') {
+        return json({ templates: await listTemplates(env) }, 200, h);
+      }
       if (url.pathname === '/api/video' && req.method === 'POST') {
         const body = await readJson(req);
         const v = detect(body?.url);
@@ -97,6 +100,12 @@ export default {
         const info = await fetchInfo(v);
         if (typeof body.title === 'string' && body.title.trim()) info.title = body.title.trim().slice(0, 200);
         const page = buildPage(env, v, info, body.kind);
+        if (typeof body.templateId === 'string' && body.templateId) {
+          // 只接受知識庫裡真的有的範本
+          const ok = (await listTemplates(env)).some((t) => t.id === body.templateId);
+          if (!ok) return json({ error: '找不到這個範本，請重新整理' }, 400, h);
+          return json(await createPageWithTemplate(env, page, body.templateId), 200, h);
+        }
         try { return json(await createPage(env, page), 200, h); }
         catch (e) {
           // 嵌入失敗（例如 IG 不給嵌）就只存連結預覽，再試一次

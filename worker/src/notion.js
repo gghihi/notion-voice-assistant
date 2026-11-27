@@ -82,3 +82,30 @@ export async function createPage(env, body) {
   const page = await call(env, '/pages', 'POST', body);
   return { url: page.url };
 }
+
+// 讀出知識庫的範本清單
+export async function listTemplates(env) {
+  const r = await call(env, '/data_sources/' + env.KNOWLEDGE_DS + '/templates?page_size=100');
+  return (r.templates || []).map((t) => ({ id: t.id, name: t.name, isDefault: !!t.is_default }));
+}
+
+// 用範本建立頁面：範本內容由 Notion 在背景套用，套好後再把影片加在最後面
+export async function createPageWithTemplate(env, body, templateId, extraBlocks, sleep = (ms) => new Promise((r) => setTimeout(r, ms))) {
+  const { children, ...rest } = body;
+  const page = await call(env, '/pages', 'POST', { ...rest, template: { type: 'template_id', template_id: templateId } });
+  // 最多等約 8 秒，等範本內容出現
+  for (let i = 0; i < 8; i++) {
+    await sleep(1000);
+    const kids = await call(env, '/blocks/' + page.id + '/children?page_size=1').catch(() => null);
+    if (kids?.results?.length) break;
+  }
+  const blocks = extraBlocks || children;
+  if (blocks?.length) {
+    try { await call(env, '/blocks/' + page.id + '/children', 'PATCH', { children: blocks }); }
+    catch (e) {
+      if (e.status !== 400) throw e;
+      await call(env, '/blocks/' + page.id + '/children', 'PATCH', { children: blocks.filter((b) => b.type === 'bookmark').concat(blocks.some((b) => b.type === 'bookmark') ? [] : [{ object: 'block', type: 'bookmark', bookmark: { url: body.properties.相關連結.url } }]) });
+    }
+  }
+  return { url: page.url };
+}

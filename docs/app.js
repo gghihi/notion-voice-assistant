@@ -145,10 +145,27 @@ $('videoPreviewBtn').onclick = async () => {
     msg(r.title ? '確認一下，沒問題就按「存到知識庫」' : '抓不到標題（IG 常擋），可以自己填，或直接存');
   } catch (e) { msg(e.message); }
 };
-$('videoSaveBtn').onclick = async () => {
-  $('videoSaveBtn').disabled = true; msg('存檔中…');
+// 範本清單：第一次打開影片分頁時讀取，預設「課堂筆記模板」
+let templatesLoaded = false;
+async function loadTemplates() {
+  if (templatesLoaded) return;
+  const sel = $('videoTemplate');
   try {
-    const r = await api('/api/video', { url: $('videoUrl').value.trim(), title: $('videoTitle').value, kind: $('videoKind').value });
+    const { templates } = await api('/api/video/templates');
+    sel.innerHTML = '';
+    sel.add(new Option('不用範本', ''));
+    for (const t of templates) sel.add(new Option(t.name, t.id));
+    const pick = templates.find((t) => t.name.includes('課堂筆記')) || templates.find((t) => t.isDefault);
+    if (pick) sel.value = pick.id;
+    templatesLoaded = true;
+  } catch { sel.innerHTML = ''; sel.add(new Option('不用範本（範本讀取失敗）', '')); }
+}
+document.querySelector('.tab[data-tab="video"]').addEventListener('click', loadTemplates);
+
+$('videoSaveBtn').onclick = async () => {
+  $('videoSaveBtn').disabled = true; msg($('videoTemplate').value ? '存檔中…（套用範本約需 5 秒）' : '存檔中…');
+  try {
+    const r = await api('/api/video', { url: $('videoUrl').value.trim(), title: $('videoTitle').value, kind: $('videoKind').value, templateId: $('videoTemplate').value });
     $('videoForm').hidden = true; $('videoUrl').value = '';
     $('videoOpen').href = r.url; $('videoDone').hidden = false;
     msg('✅ 已存到「知識庫」，點下面打開 Notion 看看');
