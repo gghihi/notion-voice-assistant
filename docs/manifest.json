@@ -3,8 +3,8 @@
  "short_name": "語音助手",
  "start_url": "./",
  "display": "standalone",
- "background_color": "#ffffff",
- "theme_color": "#ffffff",
+ "background_color": "#fbfaf7",
+ "theme_color": "#fbfaf7",
  "lang": "zh-Hant",
  "icons": [
   {

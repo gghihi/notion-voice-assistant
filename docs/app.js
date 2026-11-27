@@ -10,13 +10,13 @@ const msg = (t) => {
   m.textContent = t;
   m.classList.toggle('ok', t.startsWith('✅'));
   m.classList.add('show');
-  if (t.startsWith('✅')) celebrate();
+  if (t.startsWith('✅')) { celebrate(); navigator.vibrate?.(30); }
   if (!/中…/.test(t)) msgTimer = setTimeout(() => m.classList.remove('show'), t.startsWith('✅') ? 4000 : 6000);
 };
-function celebrate() {
+function celebrate(n = 14) {
   const pool = ['🎉', '✨', '🌟', '💛', '🥳', '👏', '🍀', '🎈'];
   const box = $('burst');
-  for (let i = 0; i < 14; i++) {
+  for (let i = 0; i < n; i++) {
     const e = document.createElement('i');
     e.textContent = pool[Math.floor(Math.random() * pool.length)];
     e.style.left = 10 + Math.random() * 80 + '%';
@@ -26,7 +26,6 @@ function celebrate() {
     box.append(e);
     setTimeout(() => e.remove(), 1700);
   }
-  navigator.vibrate?.(30);
 }
 
 // 打招呼：依時段換一句，每次打開都不太一樣
@@ -39,15 +38,29 @@ function celebrate() {
     : ['晚安～今天辛苦了 🌆', '晚上好，回顧一下今天吧 🛋️', '收工前，把待辦交給我 ✅'];
   $('greet').textContent = sets[Math.floor(Math.random() * sets.length)];
 })();
-// 點頁面圖示換個心情
-const ICONS = ['✏️', '🐣', '🌈', '🍀', '🚀', '🎧', '🌻', '🦄', '🍩', '🐳', '🔮', '🎨'];
+// 戳一下圖示：晃一晃，噴出小貼紙
 $('pageIcon').onclick = () => {
   const el = $('pageIcon');
-  el.textContent = ICONS[(ICONS.indexOf(el.textContent) + 1) % ICONS.length];
   el.classList.remove('spin'); void el.offsetWidth; el.classList.add('spin');
-  try { localStorage.setItem('icon', el.textContent); } catch {}
+  celebrate(5);
 };
-try { const ic = localStorage.getItem('icon'); if (ic) $('pageIcon').textContent = ic; } catch {}
+
+// 深夜模式切換（記住選擇；沒選過就跟著手機設定）
+function isDark() {
+  const t = document.documentElement.dataset.theme;
+  return t ? t === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+}
+function paintThemeBtn() {
+  $('themeBtn').textContent = isDark() ? '☀️' : '🌙';
+  document.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.setAttribute('content', isDark() ? '#121212' : '#fbfaf7'));
+}
+$('themeBtn').onclick = () => {
+  const next = isDark() ? 'light' : 'dark';
+  document.documentElement.dataset.theme = next;
+  try { localStorage.setItem('theme', next); } catch {}
+  paintThemeBtn();
+};
+paintThemeBtn();
 document.body.dataset.tab = 'note';
 
 function getToken() { try { return localStorage.getItem('token'); } catch { return null; } }

@@ -6,6 +6,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://*.workers.dev http://localhost:8787; img-src 'self' data: https://i.ytimg.com https://*.cdninstagram.com https://*.fbcdn.net">
 <meta name="referrer" content="no-referrer">
 <title>語音助手</title>
+<script src="theme.js"></script>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -14,11 +15,15 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div class="cover" id="cover" aria-hidden="true"><span></span><span></span><span></span></div>
 <main>
-  <button class="page-icon" id="pageIcon" type="button" aria-label="換個心情">✏️</button>
-  <h1>語音助手</h1>
-  <p class="greet" id="greet"></p>
+  <header class="hero">
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="切換深夜模式">🌙</button>
+    <button class="sticker" id="pageIcon" type="button" aria-label="戳一下"><img src="logo.png" alt=""></button>
+    <div class="hero-text">
+      <h1>語音<span class="hl">助手</span></h1>
+      <p class="bubble" id="greet"></p>
+    </div>
+  </header>
 
   <section id="login" hidden>
     <div class="callout"><span>🔐</span><div>歡迎回來！輸入 APP 密碼就能開始</div></div>

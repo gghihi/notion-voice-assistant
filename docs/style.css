@@ -1,112 +1,123 @@
-/* ===== 設計：以 Notion 為基底（乾淨、白底、灰色細線、彩色標籤），再加一點活潑的動畫 ===== */
+/* ===== 設計：Notion 的乾淨版面 × 圖示的黑黃貼紙風（粗黑線、偏移陰影、黃色亮點） ===== */
 :root {
-  --bg:#ffffff; --bg-soft:#f7f6f3; --text:#37352f; --text-2:#787774; --line:#e9e9e7; --hover:#efefed;
-  --accent:#9065b0; --accent-bg:#f4f0f7;           /* 跟著分頁換顏色 */
-  --c-purple:#9065b0; --c-purple-bg:#f4f0f7;
-  --c-green:#448361;  --c-green-bg:#edf3ec;
-  --c-orange:#d9730d; --c-orange-bg:#fbecdd;
-  --c-yellow:#cb912f; --c-yellow-bg:#fbf3db;
-  --c-blue:#337ea9;   --c-blue-bg:#e7f3f8;
-  --c-pink:#c14c8a;   --c-pink-bg:#f9eef3;
-  --radius:10px; --shadow:0 1px 2px rgba(15,15,15,.06), 0 4px 14px rgba(15,15,15,.06);
+  --bg:#fbfaf7; --paper:#ffffff; --ink:#111111; --text:#1f1f1f; --text-2:#6b6a66; --line:#111111; --soft:#f1efe9;
+  --yellow:#ffc21a; --yellow-soft:#fff3c4;
+  --accent:#8b5cf6; --accent-soft:#efe8ff;
+  --c-purple:#8b5cf6; --c-purple-bg:#efe8ff; --c-green:#22a06b; --c-green-bg:#dcf5e8;
+  --c-orange:#f97316; --c-orange-bg:#ffe8d6; --c-blue:#2f80ed; --c-blue-bg:#e2efff; --c-pink:#e2508a; --c-pink-bg:#ffe3ee;
+  --shadow:4px 4px 0 var(--ink); --shadow-sm:2px 2px 0 var(--ink);
+  --dots:rgba(17,17,17,.07);
   color-scheme:light;
 }
+:root[data-theme="dark"] {
+  --bg:#121212; --paper:#1c1c1c; --ink:#f5f5f0; --text:#eeeeea; --text-2:#a3a29c; --line:#f5f5f0; --soft:#262626;
+  --yellow-soft:#3a3214; --accent-soft:#2b2440;
+  --c-purple-bg:#2b2440; --c-green-bg:#16302a; --c-orange-bg:#3a2617; --c-blue-bg:#16263b; --c-pink-bg:#3a1c29;
+  --shadow:4px 4px 0 var(--yellow); --shadow-sm:2px 2px 0 var(--yellow); --dots:rgba(255,255,255,.06);
+  color-scheme:dark;
+}
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg:#191919; --bg-soft:#202020; --text:#e6e6e4; --text-2:#9b9b9b; --line:#2f2f2f; --hover:#2a2a2a;
-    --c-purple:#b28fd0; --c-purple-bg:#2e2638; --c-green:#6dbb8c; --c-green-bg:#23302a;
-    --c-orange:#e59a50; --c-orange-bg:#382a1e; --c-yellow:#d9ad5b; --c-yellow-bg:#352e1f;
-    --c-blue:#5fa8d3; --c-blue-bg:#1f2d36; --c-pink:#d77bab; --c-pink-bg:#36222d;
-    --shadow:0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.25);
+  :root:not([data-theme]) {
+    --bg:#121212; --paper:#1c1c1c; --ink:#f5f5f0; --text:#eeeeea; --text-2:#a3a29c; --line:#f5f5f0; --soft:#262626;
+    --yellow-soft:#3a3214; --accent-soft:#2b2440;
+    --c-purple-bg:#2b2440; --c-green-bg:#16302a; --c-orange-bg:#3a2617; --c-blue-bg:#16263b; --c-pink-bg:#3a1c29;
+    --shadow:4px 4px 0 var(--yellow); --shadow-sm:2px 2px 0 var(--yellow); --dots:rgba(255,255,255,.06);
     color-scheme:dark;
   }
 }
-body[data-tab="note"]  { --accent:var(--c-purple); --accent-bg:var(--c-purple-bg); }
-body[data-tab="plan"]  { --accent:var(--c-green);  --accent-bg:var(--c-green-bg); }
-body[data-tab="video"] { --accent:var(--c-orange); --accent-bg:var(--c-orange-bg); }
+body[data-tab="note"]  { --accent:var(--c-purple); --accent-soft:var(--c-purple-bg); }
+body[data-tab="plan"]  { --accent:var(--c-green);  --accent-soft:var(--c-green-bg); }
+body[data-tab="video"] { --accent:var(--c-orange); --accent-soft:var(--c-orange-bg); }
 
 [hidden] { display:none !important; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-html, body { margin:0; background:var(--bg); color:var(--text); }
-body { font:16px/1.6 ui-sans-serif, -apple-system, "Segoe UI", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif; transition:background .3s; }
-
-/* 封面：像 Notion 頁面頂端的封面圖，會慢慢飄動的色塊 */
-.cover { position:relative; height:120px; overflow:hidden; background:var(--accent-bg); transition:background .4s; }
-.cover span { position:absolute; border-radius:50%; filter:blur(28px); opacity:.55; animation:float 9s ease-in-out infinite alternate; }
-.cover span:nth-child(1) { width:180px; height:180px; left:-30px; top:-60px; background:var(--accent); }
-.cover span:nth-child(2) { width:140px; height:140px; right:10%; top:-40px; background:var(--c-yellow); animation-delay:-3s; }
-.cover span:nth-child(3) { width:120px; height:120px; left:45%; top:40px; background:var(--c-blue); animation-delay:-6s; }
-@keyframes float { to { transform:translate(30px, 18px) scale(1.15); } }
-
-main { max-width:640px; margin:0 auto; padding:0 16px calc(96px + env(safe-area-inset-bottom)); }
-.page-icon { font-size:64px; line-height:1; margin:-40px 0 4px; padding:0; border:0; background:none; cursor:pointer; filter:drop-shadow(0 2px 4px rgba(0,0,0,.12)); transition:transform .2s; }
-.page-icon:active, .page-icon.spin { animation:wiggle .5s ease; }
-@keyframes wiggle { 30% { transform:rotate(-14deg) scale(1.1); } 60% { transform:rotate(10deg) scale(1.05); } }
-h1 { font-size:32px; font-weight:700; margin:6px 0 2px; letter-spacing:-.01em; }
-.greet { color:var(--text-2); margin:0 0 18px; min-height:1.6em; }
-
-/* 分頁：Notion 的選項標籤樣式 */
-.tabs { display:flex; gap:6px; margin-bottom:16px; padding:4px; background:var(--bg-soft); border-radius:12px; }
-.tab { flex:1; border:0; background:transparent; color:var(--text-2); padding:9px 6px; border-radius:9px; font:inherit; font-size:15px; font-weight:500; cursor:pointer; white-space:nowrap; transition:all .2s; }
-.tab:hover { background:var(--hover); }
-.tab.on { background:var(--bg); color:var(--accent); box-shadow:var(--shadow); font-weight:600; transform:translateY(-1px); }
-
-/* 輸入框與按鈕 */
-input, textarea, select { width:100%; font:inherit; color:var(--text); background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:10px 12px; transition:border-color .15s, box-shadow .15s; }
-textarea { resize:vertical; min-height:110px; line-height:1.7; }
-input:focus, textarea:focus, select:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-bg); }
-::placeholder { color:var(--text-2); opacity:.7; }
-button { font:inherit; cursor:pointer; }
-#app button:not(.tab):not(.chip):not(.result):not(.small-btn), #loginBtn {
-  border:0; border-radius:8px; padding:10px 16px; background:var(--accent); color:#fff; font-weight:600;
-  box-shadow:0 2px 0 rgba(0,0,0,.08); transition:transform .1s, filter .15s;
+html, body { margin:0; }
+body {
+  color:var(--text); background-color:var(--bg);
+  background-image:radial-gradient(var(--dots) 1.2px, transparent 1.2px); background-size:18px 18px; /* 點點筆記紙 */
+  font:16px/1.6 ui-sans-serif, -apple-system, "Segoe UI", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  transition:background-color .3s, color .3s;
 }
-#app button:not(.tab):not(.chip):not(.result):not(.small-btn):hover, #loginBtn:hover { filter:brightness(1.07); }
-#app button:active, #loginBtn:active { transform:scale(.96); }
-#app button.ghost { background:var(--bg) !important; color:var(--text) !important; border:1px solid var(--line) !important; box-shadow:none !important; font-weight:500 !important; }
-button.recording { background:#e03e3e !important; color:#fff !important; border-color:#e03e3e !important; animation:pulse 1.2s infinite; }
-@keyframes pulse { 50% { box-shadow:0 0 0 8px rgba(224,62,62,.18); } }
+main { max-width:640px; margin:0 auto; padding:18px 16px calc(120px + env(safe-area-inset-bottom)); }
+
+/* ===== 頂部：貼紙圖示 + 對話泡泡 ===== */
+.hero { position:relative; display:flex; gap:14px; align-items:center; margin:6px 0 22px; }
+.sticker { flex:none; width:92px; height:92px; padding:6px; border:2.5px solid var(--ink); border-radius:24px; background:#fff; box-shadow:var(--shadow); transform:rotate(-6deg); cursor:pointer; transition:transform .2s; }
+.sticker img { width:100%; height:100%; display:block; }
+.sticker:hover { transform:rotate(-2deg) scale(1.04); }
+.sticker.spin { animation:wiggle .55s ease; }
+@keyframes wiggle { 25% { transform:rotate(-16deg) scale(1.08); } 55% { transform:rotate(8deg) scale(1.04); } 80% { transform:rotate(-8deg); } }
+.hero-text { min-width:0; }
+h1 { font-size:34px; line-height:1.1; font-weight:900; margin:0 0 10px; letter-spacing:-.02em; color:var(--ink); }
+h1 .hl { background:linear-gradient(transparent 58%, var(--yellow) 58%, var(--yellow) 92%, transparent 92%); padding:0 2px; }
+.bubble { position:relative; display:inline-block; margin:0; padding:6px 12px; font-size:14px; background:var(--paper); border:2px solid var(--ink); border-radius:14px 14px 14px 4px; box-shadow:var(--shadow-sm); color:var(--text); }
+.theme-btn { position:absolute; right:0; top:0; width:42px; height:42px; font-size:20px; border:2px solid var(--ink); border-radius:50%; background:var(--paper); box-shadow:var(--shadow-sm); cursor:pointer; transition:transform .3s; }
+.theme-btn:active { transform:rotate(180deg) scale(.9); }
+
+/* ===== 分頁：浮在底部的膠囊導覽列 ===== */
+.tabs { position:fixed; z-index:8; left:50%; transform:translateX(-50%); bottom:calc(14px + env(safe-area-inset-bottom)); width:min(calc(100% - 32px), 460px);
+  display:flex; gap:6px; padding:6px; background:var(--paper); border:2.5px solid var(--ink); border-radius:20px; box-shadow:var(--shadow); }
+.tab { flex:1; border:0; background:transparent; color:var(--text-2); padding:8px 4px; border-radius:14px; font:inherit; font-size:14px; font-weight:700; cursor:pointer; white-space:nowrap; transition:all .2s cubic-bezier(.2,.9,.3,1.4); }
+.tab.on { background:var(--accent); color:#fff; transform:translateY(-6px) rotate(-2deg); box-shadow:var(--shadow-sm); }
+
+/* ===== 輸入與按鈕 ===== */
+input, textarea, select { width:100%; font:inherit; color:var(--text); background:var(--paper); border:2px solid var(--ink); border-radius:12px; padding:10px 12px; transition:box-shadow .15s, transform .15s; }
+textarea { resize:vertical; min-height:120px; line-height:1.7; box-shadow:var(--shadow); }
+input:focus, textarea:focus, select:focus { outline:none; box-shadow:4px 4px 0 var(--accent); }
+::placeholder { color:var(--text-2); opacity:.75; }
+button { font:inherit; cursor:pointer; color:inherit; }
+#app button:not(.tab):not(.chip):not(.result):not(.small-btn), #loginBtn {
+  border:2px solid var(--ink); border-radius:12px; padding:10px 18px; background:var(--yellow); color:#111; font-weight:800;
+  box-shadow:var(--shadow-sm); transition:transform .1s, box-shadow .1s;
+}
+#app button:not(.tab):not(.chip):not(.result):not(.small-btn):hover, #loginBtn:hover { transform:translate(-1px,-1px); box-shadow:3px 3px 0 var(--ink); }
+#app button:not(.tab):not(.chip):not(.result):not(.small-btn):active, #loginBtn:active { transform:translate(2px,2px); box-shadow:none; }
+#app button.ghost { background:var(--paper) !important; color:var(--text) !important; }
+button.recording { background:#ff5a5a !important; color:#fff !important; animation:pulse 1.1s infinite; }
+@keyframes pulse { 50% { box-shadow:0 0 0 8px rgba(255,90,90,.25); } }
 button:disabled { opacity:.6; cursor:wait; }
-.row { display:flex; gap:10px; margin-top:12px; justify-content:space-between; align-items:center; }
+.row { display:flex; gap:12px; margin-top:14px; justify-content:space-between; align-items:center; }
 
-/* 確認卡：像 Notion 的頁面屬性區 */
-.card { margin-top:16px; padding:16px; background:var(--bg); border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow); display:grid; gap:12px; animation:pop .25s ease; }
-@keyframes pop { from { opacity:0; transform:translateY(8px) scale(.98); } }
-.card > label, .fields label, label.tpl { display:grid; gap:5px; font-size:14px; color:var(--text-2); font-weight:500; }
+/* ===== 確認卡：像一張貼上去的便條 ===== */
+.card { position:relative; margin-top:20px; padding:18px 16px 16px; background:var(--paper); border:2.5px solid var(--ink); border-radius:16px; box-shadow:var(--shadow); display:grid; gap:12px; animation:drop .35s cubic-bezier(.2,.9,.3,1.3); }
+.card::before { content:""; position:absolute; top:-12px; left:50%; width:84px; height:22px; transform:translateX(-50%) rotate(-3deg); background:var(--yellow); opacity:.85; border-radius:3px; } /* 紙膠帶 */
+@keyframes drop { from { opacity:0; transform:translateY(-10px) rotate(-1.5deg); } }
+.card > label, .fields label, label.tpl { display:grid; gap:5px; font-size:14px; color:var(--text-2); font-weight:700; }
 .fields { display:grid; gap:12px; }
-label.tpl.step { margin:0 0 12px; }
-.callout { display:flex; gap:10px; align-items:flex-start; background:var(--bg-soft); border-radius:8px; padding:12px 14px; margin-bottom:12px; }
+label.tpl.step { margin:0 0 14px; padding:10px 12px; background:var(--accent-soft); border:2px dashed var(--ink); border-radius:14px; color:var(--text); }
+.callout { display:flex; gap:10px; align-items:flex-start; background:var(--yellow-soft); border:2px solid var(--ink); border-radius:14px; padding:12px 14px; margin-bottom:12px; box-shadow:var(--shadow-sm); }
 .callout > span { font-size:20px; }
-#login input { margin-bottom:10px; }
+#login input { margin-bottom:12px; }
 
-/* 標籤：輪流用 Notion 的顏色 */
+/* ===== 標籤：彩色小貼紙 ===== */
 .chips { display:flex; flex-wrap:wrap; gap:6px; }
-.chip { border:0; border-radius:4px; padding:2px 8px; font-size:14px; background:var(--c-yellow-bg); color:var(--c-yellow); animation:pop .2s ease; }
-.chip:nth-child(5n+2) { background:var(--c-blue-bg); color:var(--c-blue); }
-.chip:nth-child(5n+3) { background:var(--c-pink-bg); color:var(--c-pink); }
-.chip:nth-child(5n+4) { background:var(--c-green-bg); color:var(--c-green); }
-.chip:nth-child(5n+5) { background:var(--c-purple-bg); color:var(--c-purple); }
+.chip { border:1.5px solid var(--ink); border-radius:999px; padding:2px 10px; font-size:13px; font-weight:700; background:var(--yellow-soft); color:var(--text); animation:pop .25s cubic-bezier(.2,.9,.3,1.5); }
+.chip:nth-child(5n+2) { background:var(--c-blue-bg); }
+.chip:nth-child(5n+3) { background:var(--c-pink-bg); }
+.chip:nth-child(5n+4) { background:var(--c-green-bg); }
+.chip:nth-child(5n+5) { background:var(--c-purple-bg); }
+.chip:nth-child(odd) { transform:rotate(-2deg); }
+@keyframes pop { from { transform:scale(.4); opacity:0; } }
 .inline { display:flex; gap:8px; }
 .inline input { flex:1; }
-.small-btn { border:1px solid var(--line); background:var(--bg); color:var(--text); border-radius:8px; padding:6px 12px; white-space:nowrap; }
+.small-btn { border:2px solid var(--ink); background:var(--paper); border-radius:12px; padding:6px 12px; white-space:nowrap; font-weight:700; }
 .results { display:grid; gap:2px; }
-.result { text-align:left; border:0; background:transparent; color:var(--text); padding:7px 10px; border-radius:6px; font-size:15px; }
-.result:hover { background:var(--hover); }
+.result { text-align:left; border:0; background:transparent; padding:7px 10px; border-radius:8px; font-size:15px; }
+.result:hover { background:var(--soft); }
 .result::before { content:"📄 "; }
-#videoThumb { width:100%; border-radius:10px; aspect-ratio:16/9; object-fit:cover; }
+#videoThumb { width:100%; border:2px solid var(--ink); border-radius:12px; aspect-ratio:16/9; object-fit:cover; }
 .hint { margin:8px 0 0; color:var(--text-2); font-size:14px; }
-.small { font-size:14px; color:var(--text-2); margin-top:22px; }
-a { color:var(--text-2); text-decoration:underline; text-decoration-color:var(--line); text-underline-offset:3px; }
-#videoOpen { display:inline-block; margin-top:8px; padding:10px 14px; border-radius:8px; background:var(--accent-bg); color:var(--accent); text-decoration:none; font-weight:600; }
+.small { font-size:14px; color:var(--text-2); margin-top:24px; }
+a { color:var(--text-2); text-underline-offset:3px; }
+#videoOpen { display:inline-block; margin-top:10px; padding:10px 14px; border:2px solid var(--ink); border-radius:12px; background:var(--accent); color:#fff; text-decoration:none; font-weight:800; box-shadow:var(--shadow-sm); }
 
-/* 訊息：從下方滑出的小卡片 */
-#msg { position:fixed; left:50%; bottom:calc(18px + env(safe-area-inset-bottom)); transform:translate(-50%, 150%); width:max-content; max-width:min(92vw, 560px); padding:11px 16px; border-radius:10px; background:var(--text); color:var(--bg); font-size:15px; box-shadow:var(--shadow); white-space:pre-line; transition:transform .3s cubic-bezier(.2,.9,.3,1.3); z-index:10; }
-#msg.show { transform:translate(-50%, 0); }
-#msg.ok { background:var(--c-green); color:#fff; }
+/* ===== 訊息小卡（在導覽列上方） ===== */
+#msg { position:fixed; left:50%; bottom:calc(92px + env(safe-area-inset-bottom)); transform:translate(-50%, 260%); width:max-content; max-width:min(92vw, 560px); padding:10px 16px; border:2px solid var(--ink); border-radius:14px; background:var(--paper); color:var(--text); font-weight:600; font-size:15px; box-shadow:var(--shadow); white-space:pre-line; transition:transform .35s cubic-bezier(.2,.9,.3,1.3); z-index:10; }
+#msg.show { transform:translate(-50%, 0) rotate(-1deg); }
+#msg.ok { background:var(--yellow); color:#111; }
 
-/* 存檔成功的小慶祝 */
 #burst { position:fixed; inset:0; pointer-events:none; z-index:9; overflow:hidden; }
-#burst i { position:absolute; bottom:60px; font-style:normal; font-size:26px; animation:fly 1.3s ease-out forwards; }
+#burst i { position:absolute; bottom:100px; font-style:normal; font-size:26px; animation:fly 1.3s ease-out forwards; }
 @keyframes fly { to { transform:translate(var(--x), -70vh) rotate(var(--r)); opacity:0; } }
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation:none !important; transition:none !important; } }
