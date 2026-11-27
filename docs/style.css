@@ -151,3 +151,26 @@ a { color:var(--text-2); text-underline-offset:3px; }
 .ask p { margin:0 0 6px; color:var(--text-2); }
 .ask .row { justify-content:center; gap:12px; margin-top:14px; }
 .ask a.pill { text-decoration:none; display:inline-block; }
+
+/* ===== 公佈欄 ===== */
+.board-btn { right:52px !important; }
+.board-btn b { position:absolute; top:-6px; right:-6px; min-width:20px; height:20px; padding:0 5px; border:2px solid var(--ink); border-radius:999px; background:#ff5a5a; color:#fff; font-size:11px; line-height:16px; font-weight:900; }
+.board { background-color:#d9b382; background-image:radial-gradient(rgba(0,0,0,.08) 1px, transparent 1px); background-size:6px 6px; } /* 軟木板 */
+:root[data-theme="dark"] .board { background-color:#4a3a28; }
+.board .sheet-head h2, .board .hint { color:#2a1d0c; }
+:root[data-theme="dark"] .board .sheet-head h2, :root[data-theme="dark"] .board .hint { color:#f3e6d2; }
+.notes { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:14px; margin-top:10px; }
+.note { position:relative; display:flex; flex-direction:column; gap:6px; min-height:120px; padding:14px 12px 10px; border:2px solid #111; border-radius:4px; box-shadow:3px 4px 0 rgba(0,0,0,.35); color:#1f1f1f; transition:transform .25s, opacity .25s; animation:pop .3s cubic-bezier(.2,.9,.3,1.5); }
+.note::before { content:"📍"; position:absolute; top:-12px; left:50%; transform:translateX(-50%); font-size:18px; }
+.note:nth-child(odd) { transform:rotate(-2deg); }
+.note:nth-child(even) { transform:rotate(1.5deg); }
+.n-projects { background:#e6dcff; } .n-tasks { background:#d2f3e1; } .n-knowledge { background:#ffe0c4; }
+.note-top { display:flex; justify-content:space-between; align-items:center; }
+.note .tag { font-size:12px; font-weight:800; }
+.note .title { font-weight:800; font-size:15px; line-height:1.35; color:#111; text-decoration:none; word-break:break-word; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+.note a.title:hover { text-decoration:underline; }
+.note .date { margin-top:auto; font-size:12px; color:#555; }
+.note .del { width:26px; height:26px; padding:0; border:1.5px solid #111; border-radius:50%; background:#fff; color:#111; font-size:12px; font-weight:900; }
+.note.tearing { transform:rotate(14deg) translateY(30px) !important; opacity:0; }
+.empty { grid-column:1/-1; text-align:center; padding:30px 0; color:#2a1d0c; font-weight:700; }
+:root[data-theme="dark"] .empty { color:#f3e6d2; }

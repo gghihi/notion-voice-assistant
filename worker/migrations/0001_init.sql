@@ -15,3 +15,11 @@ CREATE TABLE reminders (
   sent INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX idx_reminders_due ON reminders (sent, remind_at);
+-- 公佈欄：存進 Notion 的紀錄（只留 7 天）
+CREATE TABLE saved (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  db TEXT NOT NULL,
+  title TEXT NOT NULL,
+  url TEXT,
+  saved_at INTEGER NOT NULL
+);

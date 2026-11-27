@@ -19,6 +19,11 @@ function json(data, status, headers) {
   return new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...headers } });
 }
 
+// 記到公佈欄；就算記失敗也不影響已經存好的 Notion 資料
+async function remember(env, db, title, pageUrl) {
+  try { await store(env).addSaved({ db, title, url: pageUrl }); } catch (e) { console.log('board', e.message); }
+}
+
 // 範本編號：沒選回傳 null；選了但資料庫裡沒有回傳 false
 async function checkTemplate(env, db, id) {
   if (typeof id !== 'string' || !id) return null;
@@ -64,7 +69,16 @@ export default {
         if (text.length > MAX_TEXT) return json({ error: '內容太長（上限 5000 字）' }, 400, h);
         const tpl = await checkTemplate(env, 'projects', body.templateId);
         if (tpl === false) return json({ error: '找不到這個範本，請重新整理' }, 400, h);
-        return json(await createNote(env, text, toNotionProps('projects', body.props), tpl, body.title), 200, h);
+        const r = await createNote(env, text, toNotionProps('projects', body.props), tpl, body.title);
+        await remember(env, 'projects', (body.title && String(body.title).trim()) || text.split('\n')[0], r.url);
+        return json(r, 200, h);
+      }
+      if (url.pathname === '/api/board' && req.method === 'GET') {
+        return json({ items: await store(env).listSaved() }, 200, h);
+      }
+      if (url.pathname === '/api/board/delete' && req.method === 'POST') {
+        const ok = await store(env).removeSaved((await readJson(req))?.id);
+        return json({ ok }, 200, h);
       }
       if (url.pathname === '/api/vapid' && req.method === 'GET') {
         return json({ key: env.VAPID_PUBLIC_KEY || null }, 200, h);
@@ -94,6 +108,7 @@ export default {
         if (tpl === false) return json({ error: '找不到這個範本，請重新整理' }, 400, h);
         const page = await createTask(env, title, twIso(at), toNotionProps('tasks', body.props), tpl);
         if (body?.remind !== false) await store(env).addReminder({ title, remindAt: at - before * 60000, eventAt: at, pageUrl: page.url });
+        await remember(env, 'tasks', title, page.url);
         return json(page, 200, h);
       }
       if (url.pathname === '/api/video/preview' && req.method === 'POST') {
@@ -151,15 +166,19 @@ export default {
           // 只接受知識庫裡真的有的範本
           const ok = (await listTemplates(env)).some((t) => t.id === body.templateId);
           if (!ok) return json({ error: '找不到這個範本，請重新整理' }, 400, h);
-          return json(await createPageWithTemplate(env, page, body.templateId), 200, h);
+          const r = await createPageWithTemplate(env, page, body.templateId);
+          await remember(env, 'knowledge', info.title, r.url);
+          return json(r, 200, h);
         }
-        try { return json(await createPage(env, page), 200, h); }
+        try { const r = await createPage(env, page); await remember(env, 'knowledge', info.title, r.url); return json(r, 200, h); }
         catch (e) {
           // 嵌入失敗（例如 IG 不給嵌）就只存連結預覽，再試一次
           if (e.status !== 400) throw e;
           page.children = [{ object: 'block', type: 'bookmark', bookmark: { url: v.url } }];
           delete page.cover;
-          return json(await createPage(env, page), 200, h);
+          const r = await createPage(env, page);
+          await remember(env, 'knowledge', info.title, r.url);
+          return json(r, 200, h);
         }
       }
       return json({ error: '找不到' }, 404, h);

@@ -49,6 +49,7 @@ $('pageIcon').onclick = () => {
 // 預設開啟；在設定裡可以關掉
 const askEnabled = () => { try { return localStorage.getItem('askOpen') !== '0'; } catch { return true; } };
 function askOpen(url, where) {
+  loadBoard();
   if (!askEnabled() || !url || !/^https:\/\/([\w-]+\.)?notion\.(so|com|site)\//.test(url)) return;
   setTimeout(() => {
     $('askText').textContent = `已經放進「${where}」了，要打開 Notion 看看嗎？`;
@@ -60,6 +61,45 @@ function closeAsk() { $('ask').hidden = true; $('askBg').hidden = true; }
 $('askNo').onclick = closeAsk;
 $('askBg').onclick = closeAsk;
 $('askYes').onclick = () => { Sound.play('tap'); setTimeout(closeAsk, 300); };
+
+// ===== 公佈欄 =====
+const DB_LABEL = { projects: '📁 專案庫', tasks: '✅ 任務庫', knowledge: '📚 知識庫' };
+let boardItems = [];
+function fmtDate(ts) { const d = new Date(ts); return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; }
+function daysLeft(ts) { return Math.max(1, Math.ceil((ts + 7 * 86400000 - Date.now()) / 86400000)); }
+function paintBoard() {
+  const c = $('boardCount');
+  c.hidden = !boardItems.length; c.textContent = boardItems.length > 99 ? '99+' : boardItems.length;
+  const list = $('boardList');
+  list.innerHTML = '';
+  if (!boardItems.length) { list.innerHTML = '<p class="empty">還沒有東西～存一筆就會貼上來 ✨</p>'; return; }
+  for (const it of boardItems) {
+    const note = document.createElement('div');
+    note.className = 'note n-' + it.db;
+    const tag = document.createElement('span'); tag.className = 'tag'; tag.textContent = DB_LABEL[it.db] || it.db;
+    const date = document.createElement('span'); date.className = 'date'; date.textContent = fmtDate(it.savedAt) + ` · 剩 ${daysLeft(it.savedAt)} 天`;
+    const title = document.createElement(it.url ? 'a' : 'span'); title.className = 'title'; title.textContent = it.title;
+    if (it.url && /^https:\/\/([\w-]+\.)?notion\.(so|com|site)\//.test(it.url)) { title.href = it.url; title.target = '_blank'; title.rel = 'noopener'; }
+    const del = document.createElement('button'); del.type = 'button'; del.className = 'del'; del.textContent = '✕'; del.setAttribute('aria-label', '從公佈欄撕掉');
+    del.onclick = async () => {
+      if (!confirm(`要把「${it.title}」從公佈欄撕掉嗎？\n（只會從公佈欄移除，Notion 裡的資料不會被刪）`)) return;
+      note.classList.add('tearing');
+      try { await api('/api/board/delete', { id: it.id }); boardItems = boardItems.filter((x) => x.id !== it.id); setTimeout(paintBoard, 250); }
+      catch (e) { note.classList.remove('tearing'); msg(e.message); }
+    };
+    const top = document.createElement('div'); top.className = 'note-top'; top.append(tag, del);
+    note.append(top, title, date);
+    list.append(note);
+  }
+}
+async function loadBoard() {
+  if (!getToken()) return;
+  try { boardItems = (await api('/api/board')).items; paintBoard(); } catch {}
+}
+function openBoard(open) { $('board').hidden = !open; $('boardBg').hidden = !open; if (open) loadBoard(); }
+$('boardBtn').onclick = () => openBoard(true);
+$('boardClose').onclick = () => openBoard(false);
+$('boardBg').onclick = () => openBoard(false);
 
 // 所有凸起的按鈕：按下就有「咔」一聲（圖示貼紙另有自己的聲音）
 document.addEventListener('pointerdown', (e) => {
@@ -118,6 +158,8 @@ async function api(path, body) {
 
 function show() {
   const logged = !!getToken();
+  $('boardBtn').hidden = !logged;
+  if (logged) loadBoard();
   $('login').hidden = logged;
   $('app').hidden = !logged;
 }
