@@ -106,7 +106,7 @@ $('parseBtn').onclick = async () => {
     $('planAt').value = r.at ? toLocalInput(r.at) : '';
     $('planForm').hidden = false;
     panel('tasks'); loadTemplates('tasks');
-    msg(r.at ? '請確認內容，沒問題就按「確認送出」' : '沒聽出時間，請在「時間」欄自己選');
+    msg(r.at ? '選好欄位後按「確認送出」' : '沒聽出時間，請在「時間」欄自己選');
   } catch (e) { msg(e.message); }
 };
 
