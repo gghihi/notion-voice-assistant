@@ -46,8 +46,10 @@ $('pageIcon').onclick = () => {
 };
 
 // 存好後問要不要打開 Notion（等寫字聲和彩帶跑完再跳出來）
+// 預設開啟；在設定裡可以關掉
+const askEnabled = () => { try { return localStorage.getItem('askOpen') !== '0'; } catch { return true; } };
 function askOpen(url, where) {
-  if (!url || !/^https:\/\/(www\.|app\.)?notion\.(so|com)\//.test(url)) return;
+  if (!askEnabled() || !url || !/^https:\/\/([\w-]+\.)?notion\.(so|com|site)\//.test(url)) return;
   setTimeout(() => {
     $('askText').textContent = `已經放進「${where}」了，要打開 Notion 看看嗎？`;
     $('askYes').href = url;
@@ -75,6 +77,7 @@ function paintSettings() {
   setSwitch('themeSwitch', isDark());
   setSwitch('sfxSwitch', Sound.sfx);
   setSwitch('bgmSwitch', Sound.bgm);
+  setSwitch('askSwitch', askEnabled());
   document.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.setAttribute('content', isDark() ? '#121212' : '#fbfaf7'));
   document.querySelector('#settings .app-only').hidden = !getToken();
   if (window.Notification && Notification.permission === 'granted') $('pushBtn').textContent = '重新連結';
@@ -94,6 +97,7 @@ $('themeSwitch').onclick = () => {
 };
 $('sfxSwitch').onclick = () => { Sound.setSfx(!Sound.sfx); paintSettings(); };
 $('bgmSwitch').onclick = () => { Sound.setBgm(!Sound.bgm); paintSettings(); };
+$('askSwitch').onclick = () => { try { localStorage.setItem('askOpen', askEnabled() ? '0' : '1'); } catch {} paintSettings(); };
 paintSettings();
 document.body.dataset.tab = 'note';
 
