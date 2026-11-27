@@ -53,8 +53,8 @@ export async function checkDataSources(env) {
 }
 
 // 快速筆記 → 工作專案規劃 新版，專案狀態預設「點子階段」
-export async function createNote(env, text, extra = {}) {
-  const page = await call(env, '/pages', 'POST', {
+export async function createNote(env, text, extra = {}, templateId) {
+  const body = {
     parent: { type: 'data_source_id', data_source_id: env.NOTES_DS },
     properties: {
       Title: { title: [{ type: 'text', text: { content: noteTitle(text) } }] },
@@ -62,13 +62,15 @@ export async function createNote(env, text, extra = {}) {
       ...extra,
     },
     children: paragraphs(text),
-  });
+  };
+  if (templateId) return createPageWithTemplate(env, body, templateId);
+  const page = await call(env, '/pages', 'POST', body);
   return { url: page.url };
 }
 
 // 日程 → 所有任務清單
-export async function createTask(env, title, startIso, extra = {}) {
-  const page = await call(env, '/pages', 'POST', {
+export async function createTask(env, title, startIso, extra = {}, templateId) {
+  const body = {
     parent: { type: 'data_source_id', data_source_id: env.TASKS_DS },
     properties: {
       任務內容: { title: [{ type: 'text', text: { content: title.slice(0, 200) } }] },
@@ -76,7 +78,9 @@ export async function createTask(env, title, startIso, extra = {}) {
       已完成: { checkbox: false },
       ...extra,
     },
-  });
+  };
+  if (templateId) return createPageWithTemplate(env, body, templateId);
+  const page = await call(env, '/pages', 'POST', body);
   return { url: page.url };
 }
 
@@ -86,8 +90,8 @@ export async function createPage(env, body) {
 }
 
 // 讀出知識庫的範本清單
-export async function listTemplates(env) {
-  const r = await call(env, '/data_sources/' + env.KNOWLEDGE_DS + '/templates?page_size=100');
+export async function listTemplates(env, dsId = env.KNOWLEDGE_DS) {
+  const r = await call(env, '/data_sources/' + dsId + '/templates?page_size=100');
   return (r.templates || []).map((t) => ({ id: t.id, name: t.name, isDefault: !!t.is_default }));
 }
 
@@ -105,8 +109,9 @@ export async function createPageWithTemplate(env, body, templateId, extraBlocks,
   if (blocks?.length) {
     try { await call(env, '/blocks/' + page.id + '/children', 'PATCH', { children: blocks }); }
     catch (e) {
-      if (e.status !== 400) throw e;
-      await call(env, '/blocks/' + page.id + '/children', 'PATCH', { children: blocks.filter((b) => b.type === 'bookmark').concat(blocks.some((b) => b.type === 'bookmark') ? [] : [{ object: 'block', type: 'bookmark', bookmark: { url: body.properties.相關連結.url } }]) });
+      const link = body.properties?.相關連結?.url;
+      if (e.status !== 400 || !link) throw e;
+      await call(env, '/blocks/' + page.id + '/children', 'PATCH', { children: [{ object: 'block', type: 'bookmark', bookmark: { url: link } }] });
     }
   }
   return { url: page.url };

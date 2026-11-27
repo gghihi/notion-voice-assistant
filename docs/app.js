@@ -26,7 +26,7 @@ function show() {
 
 $('loginBtn').onclick = async () => {
   msg('登入中…');
-  try { setToken((await api('/api/login', { password: $('pw').value })).token); $('pw').value = ''; msg(''); show(); }
+  try { setToken((await api('/api/login', { password: $('pw').value })).token); $('pw').value = ''; msg(''); show(); loadTemplates('projects'); }
   catch (e) { msg(e.message); }
 };
 $('pw').onkeydown = (e) => { if (e.key === 'Enter') $('loginBtn').click(); };
@@ -41,8 +41,8 @@ $('checkBtn').onclick = async (e) => {
 $('saveBtn').onclick = async () => {
   const text = $('text').value.trim();
   if (!text) return msg('先寫點東西吧');
-  $('saveBtn').disabled = true; msg('存檔中…');
-  try { await api('/api/note', { text, props: panels.projects ? panels.projects.collect() : undefined }); $('text').value = ''; panels.projects?.reset(); msg('✅ 已存到「專案庫」（工作專案規劃 新版），打開 Notion 就看得到'); }
+  $('saveBtn').disabled = true; msg(tplWait('projects'));
+  try { await api('/api/note', { text, props: panels.projects ? panels.projects.collect() : undefined, templateId: $('tpl-projects').value }); $('text').value = ''; panels.projects?.reset(); msg('✅ 已存到「專案庫」（工作專案規劃 新版），打開 Notion 就看得到'); }
   catch (e) { msg(e.message); }
   finally { $('saveBtn').disabled = false; }
 };
@@ -97,7 +97,7 @@ $('parseBtn').onclick = async () => {
     $('planTitle').value = r.title;
     $('planAt').value = r.at ? toLocalInput(r.at) : '';
     $('planForm').hidden = false;
-    panel('tasks');
+    panel('tasks'); loadTemplates('tasks');
     msg(r.at ? '請確認內容，沒問題就按「存到 Notion」' : '沒聽出時間，請在「時間」欄自己選');
   } catch (e) { msg(e.message); }
 };
@@ -106,9 +106,9 @@ $('planSaveBtn').onclick = async () => {
   const at = $('planAt').value ? new Date($('planAt').value).getTime() : NaN;
   if (!Number.isFinite(at)) return msg('請選擇時間');
   const before = Number($('planBefore').value);
-  $('planSaveBtn').disabled = true; msg('存檔中…');
+  $('planSaveBtn').disabled = true; msg(tplWait('tasks'));
   try {
-    await api('/api/schedule', { title: $('planTitle').value, at, remind: before >= 0, remindBefore: Math.max(before, 0), props: panel('tasks').collect() });
+    await api('/api/schedule', { title: $('planTitle').value, at, remind: before >= 0, remindBefore: Math.max(before, 0), props: panel('tasks').collect(), templateId: $('tpl-tasks').value });
     panel('tasks').reset();
     $('planText').value = ''; $('planForm').hidden = true;
     msg('✅ 已存到「任務庫」（所有任務清單）' + (before >= 0 ? '，時間到會通知你' : ''));
@@ -160,27 +160,29 @@ $('videoPreviewBtn').onclick = async () => {
     msg(r.title ? '確認一下，沒問題就按「存到知識庫」' : '抓不到標題（IG 常擋），可以自己填，或直接存');
   } catch (e) { msg(e.message); }
 };
-// 範本清單：第一次打開影片分頁時讀取，預設「課堂筆記模板」
-let templatesLoaded = false;
-async function loadTemplates() {
-  if (templatesLoaded) return;
-  const sel = $('videoTemplate');
+// 範本清單：每個資料庫第一次用到時讀取。知識庫預設「課堂筆記模板」，其他用 Notion 設的預設範本
+const tplLoaded = {};
+async function loadTemplates(db) {
+  if (tplLoaded[db]) return;
+  tplLoaded[db] = true;
+  const sel = $('tpl-' + db);
   try {
-    const { templates } = await api('/api/video/templates');
+    const { templates } = await api('/api/templates?db=' + db);
     sel.innerHTML = '';
     sel.add(new Option('不用範本', ''));
     for (const t of templates) sel.add(new Option(t.name, t.id));
-    const pick = templates.find((t) => t.name.includes('課堂筆記')) || templates.find((t) => t.isDefault);
+    const pick = (db === 'knowledge' && templates.find((t) => t.name.includes('課堂筆記'))) || templates.find((t) => t.isDefault);
     if (pick) sel.value = pick.id;
-    templatesLoaded = true;
-  } catch { sel.innerHTML = ''; sel.add(new Option('不用範本（範本讀取失敗）', '')); }
+  } catch { tplLoaded[db] = false; sel.innerHTML = ''; sel.add(new Option('不用範本（範本讀取失敗）', '')); }
 }
-document.querySelector('.tab[data-tab="video"]').addEventListener('click', loadTemplates);
+document.querySelector('.tab[data-tab="video"]').addEventListener('click', () => loadTemplates('knowledge'));
+document.querySelector('.tab[data-tab="note"]').addEventListener('click', () => loadTemplates('projects'));
+const tplWait = (db) => ($('tpl-' + db).value ? '存檔中…（套用範本約需 5 秒）' : '存檔中…');
 
 $('videoSaveBtn').onclick = async () => {
-  $('videoSaveBtn').disabled = true; msg($('videoTemplate').value ? '存檔中…（套用範本約需 5 秒）' : '存檔中…');
+  $('videoSaveBtn').disabled = true; msg(tplWait('knowledge'));
   try {
-    const r = await api('/api/video', { url: $('videoUrl').value.trim(), title: $('videoTitle').value, props: panel('knowledge').collect(), templateId: $('videoTemplate').value });
+    const r = await api('/api/video', { url: $('videoUrl').value.trim(), title: $('videoTitle').value, props: panel('knowledge').collect(), templateId: $('tpl-knowledge').value });
     $('videoForm').hidden = true; $('videoUrl').value = '';
     $('videoOpen').href = r.url; $('videoDone').hidden = false;
     msg('✅ 已存到「知識庫」，點下面打開 Notion 看看');
@@ -197,6 +199,8 @@ $('videoSaveBtn').onclick = async () => {
   $('videoUrl').value = shared.match(/https?:\/\/\S+/)[0];
   if (getToken()) $('videoPreviewBtn').click();
 })();
+
+if (getToken()) loadTemplates('projects');
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
 show();

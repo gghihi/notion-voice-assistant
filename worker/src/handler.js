@@ -19,6 +19,12 @@ function json(data, status, headers) {
   return new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...headers } });
 }
 
+// 範本編號：沒選回傳 null；選了但資料庫裡沒有回傳 false
+async function checkTemplate(env, db, id) {
+  if (typeof id !== 'string' || !id) return null;
+  return (await listTemplates(env, env[DBS[db].env])).some((t) => t.id === id) ? id : false;
+}
+
 async function readJson(req) {
   if (Number(req.headers.get('Content-Length') || 0) > 20000) return null;
   return req.json().catch(() => null);
@@ -56,7 +62,9 @@ export default {
         const text = typeof body?.text === 'string' ? body.text.trim() : '';
         if (!text) return json({ error: '內容是空的' }, 400, h);
         if (text.length > MAX_TEXT) return json({ error: '內容太長（上限 5000 字）' }, 400, h);
-        return json(await createNote(env, text, toNotionProps('projects', body.props)), 200, h);
+        const tpl = await checkTemplate(env, 'projects', body.templateId);
+        if (tpl === false) return json({ error: '找不到這個範本，請重新整理' }, 400, h);
+        return json(await createNote(env, text, toNotionProps('projects', body.props), tpl), 200, h);
       }
       if (url.pathname === '/api/vapid' && req.method === 'GET') {
         return json({ key: env.VAPID_PUBLIC_KEY || null }, 200, h);
@@ -82,7 +90,9 @@ export default {
         const before = Math.min(Math.max(Number(body?.remindBefore) || 0, 0), 1440);
         if (!title) return json({ error: '請填寫要做什麼' }, 400, h);
         if (!Number.isFinite(at) || at < Date.now() - 60000 || at > Date.now() + 5 * 365 * 86400000) return json({ error: '時間不正確' }, 400, h);
-        const page = await createTask(env, title, twIso(at), toNotionProps('tasks', body.props));
+        const tpl = await checkTemplate(env, 'tasks', body.templateId);
+        if (tpl === false) return json({ error: '找不到這個範本，請重新整理' }, 400, h);
+        const page = await createTask(env, title, twIso(at), toNotionProps('tasks', body.props), tpl);
         if (body?.remind !== false) await store(env).addReminder({ title, remindAt: at - before * 60000, eventAt: at, pageUrl: page.url });
         return json(page, 200, h);
       }
@@ -103,8 +113,10 @@ export default {
         const q = typeof body.q === 'string' ? body.q.trim().slice(0, 50) : '';
         return json({ pages: await searchPages(env, env[def.env], def.title, q) }, 200, h);
       }
-      if (url.pathname === '/api/video/templates' && req.method === 'GET') {
-        return json({ templates: await listTemplates(env) }, 200, h);
+      if ((url.pathname === '/api/templates' || url.pathname === '/api/video/templates') && req.method === 'GET') {
+        const db = url.searchParams.get('db') || 'knowledge';
+        if (!DBS[db]) return json({ error: '沒有這個資料庫' }, 400, h);
+        return json({ templates: await listTemplates(env, env[DBS[db].env]) }, 200, h);
       }
       if (url.pathname === '/api/video' && req.method === 'POST') {
         const body = await readJson(req);
