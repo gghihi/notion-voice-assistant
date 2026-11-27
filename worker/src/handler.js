@@ -4,6 +4,7 @@ import { checkDataSources, createNote, createTask, createPage, listTemplates, cr
 import { DBS, describe, toNotionProps, fromNotionProps } from './fields.js';
 import { detect, fetchInfo, buildPage } from './video.js';
 import { parseWhen, twIso } from './when.js';
+import { aiTask, aiSuggest, aiNotice } from './ai.js';
 
 
 const store = (env) => env.STORE.get(env.STORE.idFromName('main'));
@@ -73,6 +74,19 @@ export default {
         await remember(env, 'projects', (body.title && String(body.title).trim()) || text.split('\n')[0], r.url);
         return json(r, 200, h);
       }
+      if (url.pathname === '/api/ai/suggest' && req.method === 'POST') {
+        const body = await readJson(req);
+        const db = body?.db;
+        const text = typeof body?.text === 'string' ? body.text.trim().slice(0, 3000) : '';
+        if (!['projects', 'knowledge'].includes(db) || !text) return json({ error: '資料不完整' }, 400, h);
+        try {
+          const fields = describe(db, await getDataSource(env, env[DBS[db].env]));
+          return json({ ...(await aiSuggest(env, db, text, fields)), ai: true }, 200, h);
+        } catch (e) {
+          if (e.kind) return json({ props: {}, notice: aiNotice(e) }, 200, h);
+          throw e;
+        }
+      }
       if (url.pathname === '/api/board' && req.method === 'GET') {
         return json({ items: await store(env).listSaved() }, 200, h);
       }
@@ -104,7 +118,15 @@ export default {
         const text = typeof body?.text === 'string' ? body.text.trim().slice(0, 500) : '';
         if (!text) return json({ error: '內容是空的' }, 400, h);
         const r = parseWhen(text);
-        return json({ title: r.title, at: r.at }, 200, h);
+        if (body.ai === false) return json({ title: r.title, at: r.at, props: {} }, 200, h);
+        try {
+          const fields = describe('tasks', await getDataSource(env, env.TASKS_DS));
+          const a = await aiTask(env, text, fields);
+          // AI 沒聽出時間時，再參考規則版的結果
+          return json({ title: a.title || r.title, at: a.at ?? r.at, props: a.props, ai: true }, 200, h);
+        } catch (e) {
+          return json({ title: r.title, at: r.at, props: {}, notice: aiNotice(e) }, 200, h);
+        }
       }
       if (url.pathname === '/api/schedule' && req.method === 'POST') {
         const body = await readJson(req);

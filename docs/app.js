@@ -46,6 +46,29 @@ $('pageIcon').onclick = () => {
 };
 
 // 存好後問要不要打開 Notion（等寫字聲和彩帶跑完再跳出來）
+// AI 小幫手：預設開啟，設定裡可以關掉
+const aiEnabled = () => { try { return localStorage.getItem('ai') !== '0'; } catch { return true; } };
+// 把 AI 建議填進確認卡：可複選的和原本的值合併，單選只在空白時填
+async function applyAi(db, props) {
+  const p = panel(db); await p.ready;
+  const cur = p.collect();
+  for (const [k, v] of Object.entries(props || {})) {
+    if (Array.isArray(v)) p.set(k, [...new Set([...(cur[k] || []), ...v])]);
+    else if (!cur[k]) p.set(k, v);
+  }
+}
+async function aiSuggest(db, text, onTitle) {
+  if (!aiEnabled() || !text) return;
+  try {
+    const r = await api('/api/ai/suggest', { db, text });
+    if (r.notice) return msg('🤖 ' + r.notice);
+    if (r.title && onTitle) onTitle(r.title);
+    await applyAi(db, r.props);
+    const n = Object.values(r.props || {}).flat().length;
+    msg(n || r.title ? '✨ AI 幫你填了建議，看看要不要改' : '🤖 AI 沒有找到適合的分類');
+  } catch { /* AI 失敗不影響存檔 */ }
+}
+
 // 預設開啟；在設定裡可以關掉
 const askEnabled = () => { try { return localStorage.getItem('askOpen') !== '0'; } catch { return true; } };
 function askOpen(url, where) {
@@ -138,6 +161,7 @@ function paintSettings() {
   setSwitch('sfxSwitch', Sound.sfx);
   setSwitch('bgmSwitch', Sound.bgm);
   setSwitch('askSwitch', askEnabled());
+  setSwitch('aiSwitch', aiEnabled());
   document.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.setAttribute('content', isDark() ? '#121212' : '#fbfaf7'));
   document.querySelector('#settings .app-only').hidden = !getToken();
   if (window.Notification && Notification.permission === 'granted') $('pushBtn').textContent = '重新連結';
@@ -157,6 +181,7 @@ $('themeSwitch').onclick = () => {
 };
 $('sfxSwitch').onclick = () => { Sound.setSfx(!Sound.sfx); paintSettings(); };
 $('bgmSwitch').onclick = () => { Sound.setBgm(!Sound.bgm); paintSettings(); };
+$('aiSwitch').onclick = () => { try { localStorage.setItem('ai', aiEnabled() ? '0' : '1'); } catch {} paintSettings(); };
 $('askSwitch').onclick = () => { try { localStorage.setItem('askOpen', askEnabled() ? '0' : '1'); } catch {} paintSettings(); };
 paintSettings();
 document.body.dataset.tab = 'note';
@@ -205,7 +230,9 @@ $('noteNextBtn').onclick = () => {
   $('noteTitle').value = text.split('\n')[0].slice(0, 40);
   $('noteForm').hidden = false;
   panel('projects'); loadTemplates('projects');
-  msg('選好欄位後按「確認送出」');
+  msg(aiEnabled() ? '✨ AI 正在幫你整理…' : '選好欄位後按「確認送出」');
+  const typed = $('noteTitle').value;
+  aiSuggest('projects', text, (t) => { if ($('noteTitle').value === typed) $('noteTitle').value = t; });
 };
 $('saveBtn').onclick = async () => {
   const text = $('text').value.trim();
@@ -262,12 +289,14 @@ $('parseBtn').onclick = async () => {
   if (!text) return msg('先說或打一句任務吧');
   msg('讀取中…');
   try {
-    const r = await api('/api/schedule/parse', { text });
+    if (aiEnabled()) msg('✨ AI 理解中…');
+    const r = await api('/api/schedule/parse', { text, ai: aiEnabled() });
     $('planTitle').value = r.title;
     $('planAt').value = r.at ? toLocalInput(r.at) : '';
     $('planForm').hidden = false;
-    panel('tasks'); loadTemplates('tasks');
-    msg(r.at ? '選好欄位後按「確認送出」' : '沒聽出時間，請在「時間」欄自己選');
+    panel('tasks'); await loadTemplates('tasks');
+    if (r.props && Object.keys(r.props).length) await applyAi('tasks', r.props);
+    msg((r.notice ? '🤖 ' + r.notice + '\n' : r.ai ? '✨ AI 幫你看懂了，' : '') + (r.at ? '選好欄位後按「確認送出」' : '沒聽出時間，請在「時間」欄自己選'));
   } catch (e) { msg(e.message); }
 };
 
@@ -327,6 +356,7 @@ $('videoPreviewBtn').onclick = async () => {
     if (r.uploadDate) kp.set('上傳日期', r.uploadDate);
     kp.set('課堂筆記通路', r.platform === 'IG' ? 'IG' : 'YouTube');
     kp.set('相關連結', r.url);
+    aiSuggest('knowledge', [r.title, r.author && '頻道：' + r.author, r.platform].filter(Boolean).join('\n'));
     msg(r.title ? '選好欄位後按「確認送出」' : '抓不到標題（IG 常擋），可以自己填，或直接存');
   } catch (e) { msg(e.message); }
 };
@@ -343,7 +373,7 @@ async function loadTemplates(db) {
     for (const t of templates) sel.add(new Option(t.name, t.id));
     const pick = (db === 'knowledge' && templates.find((t) => t.name.includes('課堂筆記'))) || templates.find((t) => t.isDefault);
     if (pick) sel.value = pick.id;
-    applyTemplate(db);
+    await applyTemplate(db);
   } catch { tplLoaded[db] = false; sel.innerHTML = ''; sel.add(new Option('不用範本（範本讀取失敗）', '')); }
 }
 document.querySelector('.tab[data-tab="video"]').addEventListener('click', () => loadTemplates('knowledge'));

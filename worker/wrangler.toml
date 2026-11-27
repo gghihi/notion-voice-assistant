@@ -8,6 +8,11 @@ compatibility_date = "2026-11-01"
 # 只有這個網址的網頁可以呼叫後端
 ALLOWED_ORIGIN = "https://gghihi.github.io"
 NOTION_VERSION = "2025-09-03"
+# AI 模型（和呱咩小窩帳相同）；AI_ENABLED 設 "0" 可整個關掉，AI_SIMULATE_QUOTA 設 "1" 可模擬額度用完
+GEMINI_MODEL = "gemini-3.8-flash"
+GEMINI_FALLBACK_MODEL = "gemini-3.5-flash-lite"
+AI_ENABLED = "1"
+AI_SIMULATE_QUOTA = "0"
 
 # 登入防暴力破解：同一個來源每分鐘最多試 5 次密碼（Cloudflare 免費功能）
 [[ratelimits]]
@@ -23,3 +28,8 @@ class_name = "Store"
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["Store"]
+
+# AI：借用「呱咩小窩帳」的 Gemini 轉送站（在美國；金鑰只存在那邊）
+[[services]]
+binding = "GEMINI_PROXY"
+service = "guamie-ledger-gemini"
