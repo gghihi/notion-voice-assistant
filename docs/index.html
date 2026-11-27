@@ -89,7 +89,6 @@
         <div class="fields" id="fields-knowledge"></div>
         <button id="videoSaveBtn">確認送出</button>
       </div>
-      <p id="videoDone" hidden><a id="videoOpen" href="#" target="_blank" rel="noopener">👉 打開 Notion 查看</a></p>
     </div>
 
   </section>
@@ -105,6 +104,16 @@
       <div class="set-row"><span>📨 測試通知</span><button class="pill" id="pushTestBtn" type="button">送一則</button></div>
       <div class="set-row"><span>🔗 Notion 連線</span><button class="pill" id="checkBtn" type="button">檢查</button></div>
       <div class="set-row"><span>👋 登出</span><button class="pill danger" id="logoutBtn" type="button">登出</button></div>
+    </div>
+  </section>
+  <div class="sheet-bg" id="askBg" hidden></div>
+  <section class="ask" id="ask" hidden role="dialog" aria-label="存好了">
+    <div class="ask-emoji">📝✨</div>
+    <h2>存好囉！</h2>
+    <p id="askText">要打開 Notion 看看嗎？</p>
+    <div class="row">
+      <button class="pill danger" id="askNo" type="button">先不用</button>
+      <a class="pill" id="askYes" href="#" target="_blank" rel="noopener">打開 Notion</a>
     </div>
   </section>
   <div id="msg" role="status" aria-live="polite"></div>

@@ -141,3 +141,13 @@ a { color:var(--text-2); text-underline-offset:3px; }
 .pill { border:2px solid var(--ink); border-radius:999px; padding:5px 16px; background:var(--yellow); color:#111; font-weight:800; box-shadow:var(--shadow-sm); }
 .pill:active { transform:translate(2px,2px); box-shadow:none; }
 .pill.danger { background:var(--paper); color:var(--text); }
+
+/* ===== 存好後的詢問卡 ===== */
+.ask { position:fixed; z-index:21; left:50%; top:50%; transform:translate(-50%,-50%) rotate(-1.5deg); width:min(88vw, 360px); padding:22px 20px 18px; text-align:center;
+  background:var(--paper); border:2.5px solid var(--ink); border-radius:22px; box-shadow:6px 6px 0 var(--ink); animation:bounceIn .45s cubic-bezier(.2,.9,.3,1.5); }
+@keyframes bounceIn { from { transform:translate(-50%,-50%) scale(.6) rotate(-8deg); opacity:0; } }
+.ask-emoji { font-size:44px; line-height:1; animation:wiggle 1.2s ease 0.3s; }
+.ask h2 { margin:8px 0 4px; font-size:24px; font-weight:900; color:var(--ink); }
+.ask p { margin:0 0 6px; color:var(--text-2); }
+.ask .row { justify-content:center; gap:12px; margin-top:14px; }
+.ask a.pill { text-decoration:none; display:inline-block; }
