@@ -77,7 +77,7 @@ export function buildPage(env, v, info, kind) {
     相關連結: { url: v.url },
     課堂筆記通路: { select: { name: v.platform === 'IG' ? 'IG' : 'YouTube' } },
     觀看性質: { select: { name: '想看' } },
-    知識庫性質: { select: { name: KINDS.includes(kind) ? kind : '短影片' } },
+    知識庫性質: { select: { name: KINDS.includes(kind) ? kind : '課堂筆記' } },
   };
   // 頻道名稱：和現有選項一樣就直接選到，沒有的話 Notion 會自動新增（逗號不能出現在選項名稱）
   if (info.author) props.作者 = { multi_select: [{ name: info.author.replace(/,/g, ' ').slice(0, 100) }] };

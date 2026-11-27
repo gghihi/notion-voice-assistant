@@ -27,7 +27,7 @@ test('抓不到就留空', async () => {
 });
 test('Notion 頁面欄位', () => {
   const p = buildPage({ KNOWLEDGE_DS: 'ds' }, detect('https://youtu.be/dQw4w9WgXcQ'), { title: 'T', author: 'A,B', uploadDate: null, thumbnail: 'https://i.ytimg.com/x.jpg' }, '亂填');
-  assert.equal(p.properties.知識庫性質.select.name, '短影片');
+  assert.equal(p.properties.知識庫性質.select.name, '課堂筆記');
   assert.equal(p.properties.觀看性質.select.name, '想看');
   assert.equal(p.properties.作者.multi_select[0].name, 'A B');
   assert.equal(p.children[0].type, 'video');
