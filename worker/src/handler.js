@@ -1,7 +1,7 @@
 // 後端入口：只開放少數幾個網址，每個（除了登入）都要有效通行證。
 import { checkPassword, issueToken, verifyToken } from './auth.js';
-import { checkDataSources, createNote, createTask, createPage, listTemplates, createPageWithTemplate, getDataSource, searchPages } from './notion.js';
-import { DBS, describe, toNotionProps } from './fields.js';
+import { checkDataSources, createNote, createTask, createPage, listTemplates, createPageWithTemplate, getDataSource, searchPages, getPage, pageTitle } from './notion.js';
+import { DBS, describe, toNotionProps, fromNotionProps } from './fields.js';
 import { detect, fetchInfo, buildPage } from './video.js';
 import { parseWhen, twIso } from './when.js';
 
@@ -105,6 +105,22 @@ export default {
         const db = url.searchParams.get('db');
         if (!DBS[db]) return json({ error: '沒有這個資料庫' }, 400, h);
         return json({ fields: describe(db, await getDataSource(env, env[DBS[db].env])) }, 200, h);
+      }
+      if (url.pathname === '/api/template-values' && req.method === 'GET') {
+        const db = url.searchParams.get('db');
+        const id = url.searchParams.get('id') || '';
+        if (!DBS[db]) return json({ error: '沒有這個資料庫' }, 400, h);
+        // 只讀這個資料庫自己的範本，不能拿來讀任意頁面
+        if (!(await listTemplates(env, env[DBS[db].env])).some((t) => t.id === id)) return json({ error: '找不到這個範本' }, 400, h);
+        const values = fromNotionProps(db, (await getPage(env, id)).properties);
+        // 關聯欄位補上標題，畫面才看得懂
+        for (const [name, f] of Object.entries(DBS[db].fields)) {
+          if (f.type !== 'relation' || !values[name]) continue;
+          values[name] = await Promise.all(values[name].map(async (rid) => {
+            try { return { id: rid, title: pageTitle(await getPage(env, rid)) }; } catch { return { id: rid, title: '（無法讀取）' }; }
+          }));
+        }
+        return json({ values }, 200, h);
       }
       if (url.pathname === '/api/relation-search' && req.method === 'POST') {
         const body = await readJson(req);

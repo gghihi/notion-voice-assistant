@@ -1,6 +1,7 @@
 // 欄位選擇器：依 Notion 資料庫的設定，自動產生下拉選單、標籤、日期、關聯搜尋。
 // 用法：const panel = FieldPanel('knowledge', 容器);  await panel.ready;  panel.set('作者', ['某人']);  panel.collect()
-window.FieldPanel = function FieldPanel(db, box, defaults = {}) {
+window.FieldPanel = function FieldPanel(db, box, baseDefaults = {}) {
+  let defaults = { ...baseDefaults };
   const values = {};
   const setters = {};
   const el = (tag, attrs = {}, ...kids) => { const e = document.createElement(tag); Object.assign(e, attrs); e.append(...kids); return e; };
@@ -68,7 +69,12 @@ window.FieldPanel = function FieldPanel(db, box, defaults = {}) {
         }, 350);
       };
       i.oninput = search; i.onfocus = search;
-      setters[f.name] = () => { values[f.name] = []; chips(f.name, wrap); };
+      // 可以給 [{id, title}]（例如範本預設的關聯）
+      setters[f.name] = (v) => {
+        values[f.name] = [];
+        for (const x of v || []) { if (x && x.id) { titles[x.id] = x.title; values[f.name].push(x.id); } }
+        chips(f.name, wrap, (id) => titles[id] || id);
+      };
       label.append(wrap, i, results);
     } else return null;
     return label;
@@ -87,6 +93,8 @@ window.FieldPanel = function FieldPanel(db, box, defaults = {}) {
   return {
     ready,
     set(name, v) { setters[name]?.(v); },
+    // 套用範本的預設值（範本有填的蓋過 APP 預設），然後重設畫面
+    async useTemplate(tplValues) { await ready; defaults = { ...baseDefaults, ...(tplValues || {}) }; this.reset(); },
     reset() { for (const k of Object.keys(setters)) setters[k](defaults[k]); },
     collect() { const out = {}; for (const [k, v] of Object.entries(values)) if (Array.isArray(v) ? v.length : v) out[k] = v; return out; },
   };

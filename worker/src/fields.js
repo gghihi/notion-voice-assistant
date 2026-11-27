@@ -63,3 +63,19 @@ export function toNotionProps(dbKey, input) {
   }
   return props;
 }
+
+/** 把範本頁面的欄位值整理成 APP 的格式（只取白名單欄位）；關聯先回傳編號，標題另外查 */
+export function fromNotionProps(dbKey, properties) {
+  const def = DBS[dbKey];
+  const out = {};
+  for (const name of Object.keys(def.fields)) {
+    const p = properties?.[name];
+    if (!p) continue;
+    if (p.type === 'select' && p.select) out[name] = p.select.name;
+    else if (p.type === 'multi_select' && p.multi_select?.length) out[name] = p.multi_select.map((o) => o.name);
+    else if (p.type === 'date' && p.date?.start) out[name] = p.date.start.slice(0, 10);
+    else if (p.type === 'url' && p.url) out[name] = p.url;
+    else if (p.type === 'relation' && p.relation?.length) out[name] = p.relation.slice(0, 10).map((r) => r.id);
+  }
+  return out;
+}

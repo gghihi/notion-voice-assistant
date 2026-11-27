@@ -126,3 +126,10 @@ export async function searchPages(env, dsId, titleProp, q) {
   const r = await call(env, '/data_sources/' + dsId + '/query', 'POST', body);
   return (r.results || []).map((p) => ({ id: p.id, title: (p.properties?.[titleProp]?.title || []).map((t) => t.plain_text).join('') || '（無標題）' }));
 }
+
+export async function getPage(env, id) { return call(env, '/pages/' + id); }
+
+export function pageTitle(page) {
+  const t = Object.values(page.properties || {}).find((p) => p.type === 'title');
+  return (t?.title || []).map((x) => x.plain_text).join('') || '（無標題）';
+}

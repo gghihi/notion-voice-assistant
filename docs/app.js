@@ -161,8 +161,9 @@ $('videoPreviewBtn').onclick = async () => {
     $('videoMeta').textContent = [r.platform, r.author && '頻道：' + r.author, r.uploadDate && '上傳：' + r.uploadDate].filter(Boolean).join('　');
     $('videoForm').hidden = false;
     const kp = panel('knowledge'); await kp.ready; kp.reset();
-    kp.set('作者', r.author ? [r.author.replace(/,/g, ' ')] : []);
-    kp.set('上傳日期', r.uploadDate || '');
+    // 抓到的影片資料蓋過範本預設；抓不到就保留範本的值
+    if (r.author) kp.set('作者', [r.author.replace(/,/g, ' ')]);
+    if (r.uploadDate) kp.set('上傳日期', r.uploadDate);
     kp.set('課堂筆記通路', r.platform === 'IG' ? 'IG' : 'YouTube');
     kp.set('相關連結', r.url);
     msg(r.title ? '選好欄位後按「確認送出」' : '抓不到標題（IG 常擋），可以自己填，或直接存');
@@ -181,11 +182,25 @@ async function loadTemplates(db) {
     for (const t of templates) sel.add(new Option(t.name, t.id));
     const pick = (db === 'knowledge' && templates.find((t) => t.name.includes('課堂筆記'))) || templates.find((t) => t.isDefault);
     if (pick) sel.value = pick.id;
+    applyTemplate(db);
   } catch { tplLoaded[db] = false; sel.innerHTML = ''; sel.add(new Option('不用範本（範本讀取失敗）', '')); }
 }
 document.querySelector('.tab[data-tab="video"]').addEventListener('click', () => loadTemplates('knowledge'));
 document.querySelector('.tab[data-tab="note"]').addEventListener('click', () => loadTemplates('projects'));
 document.querySelector('.tab[data-tab="plan"]').addEventListener('click', () => loadTemplates('tasks'));
+// 選了範本 → 讀出範本已填好的欄位，當成確認卡的預設值（還是可以改）
+async function applyTemplate(db) {
+  const id = $('tpl-' + db).value;
+  let values = {};
+  if (id) {
+    msg('讀取範本預設值…');
+    try { values = (await api(`/api/template-values?db=${db}&id=${encodeURIComponent(id)}`)).values; msg(''); }
+    catch (e) { msg('範本預設值讀取失敗，欄位改用一般預設'); }
+  }
+  if ($('tpl-' + db).value === id) await panel(db).useTemplate(values);
+}
+['projects', 'tasks', 'knowledge'].forEach((db) => { $('tpl-' + db).onchange = () => applyTemplate(db); });
+
 const tplWait = (db) => ($('tpl-' + db).value ? '存檔中…（套用範本約需 5 秒）' : '存檔中…');
 
 $('videoSaveBtn').onclick = async () => {
