@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://*.workers.dev http://localhost:8787; img-src 'self' data:">
+<meta name="referrer" content="no-referrer">
+<title>語音助手</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#fffaf0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <h1>✏️ 語音助手</h1>
+
+  <section id="login" hidden>
+    <p>請輸入 APP 密碼</p>
+    <input id="pw" type="password" autocomplete="current-password" placeholder="密碼">
+    <button id="loginBtn">登入</button>
+  </section>
+
+  <section id="app" hidden>
+    <div class="tabs"><button class="tab on" data-tab="note">📝 筆記</button></div>
+    <textarea id="text" rows="6" placeholder="打字，或按下面的麥克風用說的"></textarea>
+    <div class="row">
+      <button id="micBtn" class="ghost">🎤 說話</button>
+      <button id="saveBtn">存到 Notion</button>
+    </div>
+    <p class="small"><a href="#" id="checkBtn">檢查 Notion 連線</a> · <a href="#" id="logoutBtn">登出</a></p>
+  </section>
+
+  <p id="msg" role="status"></p>
+</main>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

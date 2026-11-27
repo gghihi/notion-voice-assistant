@@ -1,0 +1,16 @@
+# 這裡只放「不是秘密」的設定。
+# 所有金鑰（Notion 金鑰、APP 密碼、資料庫編號）都用 `npx wrangler secret put 名稱` 存進 Cloudflare，不會出現在程式庫。
+name = "notion-voice-worker"
+main = "src/index.js"
+compatibility_date = "2026-11-01"
+
+[vars]
+# 只有這個網址的網頁可以呼叫後端
+ALLOWED_ORIGIN = "https://gghihi.github.io"
+NOTION_VERSION = "2025-09-03"
+
+# 登入防暴力破解：同一個來源每分鐘最多試 5 次密碼（Cloudflare 免費功能）
+[[ratelimits]]
+name = "LOGIN_LIMITER"
+namespace_id = "1001"
+simple = { limit = 5, period = 60 }

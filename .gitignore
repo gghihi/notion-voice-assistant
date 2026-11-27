@@ -1,0 +1,6 @@
+# 金鑰與本機設定絕對不能上傳
+.dev.vars
+.env*
+*.key
+node_modules/
+.wrangler/
