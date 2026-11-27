@@ -185,6 +185,7 @@ async function loadTemplates(db) {
 }
 document.querySelector('.tab[data-tab="video"]').addEventListener('click', () => loadTemplates('knowledge'));
 document.querySelector('.tab[data-tab="note"]').addEventListener('click', () => loadTemplates('projects'));
+document.querySelector('.tab[data-tab="plan"]').addEventListener('click', () => loadTemplates('tasks'));
 const tplWait = (db) => ($('tpl-' + db).value ? '存檔中…（套用範本約需 5 秒）' : '存檔中…');
 
 $('videoSaveBtn').onclick = async () => {

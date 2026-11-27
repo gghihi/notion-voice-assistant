@@ -36,3 +36,4 @@ details.more { margin-top:14px; }
 details.more summary { cursor:pointer; margin-bottom:10px; }
 .tabs .tab { flex:1; padding:10px 6px; font-size:16px; white-space:nowrap; }
 label.tpl { display:grid; gap:4px; font-size:16px; margin-top:12px; }
+label.tpl.step { margin:0 0 12px; }
