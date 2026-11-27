@@ -1,6 +1,7 @@
 // 後端入口：只開放少數幾個網址，每個（除了登入）都要有效通行證。
 import { checkPassword, issueToken, verifyToken } from './auth.js';
-import { checkDataSources, createNote, createTask } from './notion.js';
+import { checkDataSources, createNote, createTask, createPage } from './notion.js';
+import { detect, fetchInfo, buildPage } from './video.js';
 import { parseWhen, twIso } from './when.js';
 
 
@@ -83,6 +84,27 @@ export default {
         const page = await createTask(env, title, twIso(at));
         if (body?.remind !== false) await store(env).addReminder({ title, remindAt: at - before * 60000, eventAt: at, pageUrl: page.url });
         return json(page, 200, h);
+      }
+      if (url.pathname === '/api/video/preview' && req.method === 'POST') {
+        const v = detect((await readJson(req))?.url);
+        if (!v) return json({ error: '看不懂這個網址，目前支援 YouTube 和 Instagram' }, 400, h);
+        return json({ ...v, ...(await fetchInfo(v)) }, 200, h);
+      }
+      if (url.pathname === '/api/video' && req.method === 'POST') {
+        const body = await readJson(req);
+        const v = detect(body?.url);
+        if (!v) return json({ error: '看不懂這個網址，目前支援 YouTube 和 Instagram' }, 400, h);
+        const info = await fetchInfo(v);
+        if (typeof body.title === 'string' && body.title.trim()) info.title = body.title.trim().slice(0, 200);
+        const page = buildPage(env, v, info, body.kind);
+        try { return json(await createPage(env, page), 200, h); }
+        catch (e) {
+          // 嵌入失敗（例如 IG 不給嵌）就只存連結預覽，再試一次
+          if (e.status !== 400) throw e;
+          page.children = [{ object: 'block', type: 'bookmark', bookmark: { url: v.url } }];
+          delete page.cover;
+          return json(await createPage(env, page), 200, h);
+        }
       }
       return json({ error: '找不到' }, 404, h);
     } catch (e) {

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://*.workers.dev http://localhost:8787; img-src 'self' data:">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://*.workers.dev http://localhost:8787; img-src 'self' data: https://i.ytimg.com https://*.cdninstagram.com https://*.fbcdn.net">
 <meta name="referrer" content="no-referrer">
 <title>語音助手</title>
 <link rel="manifest" href="manifest.json">
@@ -28,6 +28,7 @@
     <div class="tabs">
       <button class="tab on" data-tab="note">📝 筆記</button>
       <button class="tab" data-tab="plan">📅 日程</button>
+      <button class="tab" data-tab="video">🎬 影片</button>
     </div>
 
     <div id="tab-note">
@@ -60,6 +61,24 @@
         <button id="planSaveBtn">存到 Notion</button>
       </div>
       <p class="small" id="pushRow"><button id="pushBtn" class="ghost">🔔 開啟提醒通知</button> <a href="#" id="pushTestBtn">送一則測試通知</a></p>
+    </div>
+
+    <div id="tab-video" hidden>
+      <input id="videoUrl" inputmode="url" placeholder="貼上 YouTube 或 IG 網址">
+      <p class="small hint">小技巧：在 YouTube／IG 按「分享」→ 選「語音助手」，網址會自動帶進來</p>
+      <div class="row"><span></span><button id="videoPreviewBtn">抓影片資料</button></div>
+      <div id="videoForm" class="card" hidden>
+        <img id="videoThumb" alt="" hidden>
+        <label>標題<input id="videoTitle"></label>
+        <p class="small" id="videoMeta"></p>
+        <label>知識庫性質
+          <select id="videoKind">
+            <option>書</option><option>電影</option><option>哲學＆定理＆心理</option><option>課堂筆記</option><option selected>短影片</option><option>冷知識</option>
+          </select>
+        </label>
+        <button id="videoSaveBtn">存到知識庫</button>
+      </div>
+      <p id="videoDone" hidden><a id="videoOpen" href="#" target="_blank" rel="noopener">👉 打開 Notion 查看</a></p>
     </div>
 
     <p class="small"><a href="#" id="checkBtn">檢查 Notion 連線</a> · <a href="#" id="logoutBtn">登出</a></p>

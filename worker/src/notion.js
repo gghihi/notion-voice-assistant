@@ -77,3 +77,8 @@ export async function createTask(env, title, startIso) {
   });
   return { url: page.url };
 }
+
+export async function createPage(env, body) {
+  const page = await call(env, '/pages', 'POST', body);
+  return { url: page.url };
+}

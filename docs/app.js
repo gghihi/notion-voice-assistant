@@ -53,6 +53,7 @@ document.querySelectorAll('.tab').forEach((t) => {
     document.querySelectorAll('.tab').forEach((x) => x.classList.toggle('on', x === t));
     $('tab-note').hidden = t.dataset.tab !== 'note';
     $('tab-plan').hidden = t.dataset.tab !== 'plan';
+    $('tab-video').hidden = t.dataset.tab !== 'video';
     msg('');
   };
 });
@@ -127,6 +128,43 @@ $('pushTestBtn').onclick = async (e) => {
   catch (err) { msg(err.message); }
 };
 if (window.Notification && Notification.permission === 'granted') $('pushBtn').textContent = '🔔 通知已開啟（按一下重新連結）';
+
+// 影片：抓資料 → 確認 → 存到知識庫
+function openTab(name) { document.querySelector(`.tab[data-tab="${name}"]`).click(); }
+$('videoPreviewBtn').onclick = async () => {
+  const url = $('videoUrl').value.trim();
+  if (!url) return msg('先貼上影片網址');
+  $('videoDone').hidden = true; msg('抓影片資料中…');
+  try {
+    const r = await api('/api/video/preview', { url });
+    $('videoTitle').value = r.title || '';
+    $('videoThumb').hidden = !r.thumbnail;
+    if (r.thumbnail) $('videoThumb').src = r.thumbnail;
+    $('videoMeta').textContent = [r.platform, r.author && '頻道：' + r.author, r.uploadDate && '上傳：' + r.uploadDate].filter(Boolean).join('　');
+    $('videoForm').hidden = false;
+    msg(r.title ? '確認一下，沒問題就按「存到知識庫」' : '抓不到標題（IG 常擋），可以自己填，或直接存');
+  } catch (e) { msg(e.message); }
+};
+$('videoSaveBtn').onclick = async () => {
+  $('videoSaveBtn').disabled = true; msg('存檔中…');
+  try {
+    const r = await api('/api/video', { url: $('videoUrl').value.trim(), title: $('videoTitle').value, kind: $('videoKind').value });
+    $('videoForm').hidden = true; $('videoUrl').value = '';
+    $('videoOpen').href = r.url; $('videoDone').hidden = false;
+    msg('✅ 已存到「知識庫」，點下面打開 Notion 看看');
+  } catch (e) { msg(e.message); }
+  finally { $('videoSaveBtn').disabled = false; }
+};
+// 從其他 APP「分享」過來時，網址會放在網址列參數裡
+(function handleShare() {
+  const q = new URLSearchParams(location.search);
+  const shared = [q.get('url'), q.get('text'), q.get('title')].find((x) => x && /https?:\/\//.test(x));
+  if (!shared) return;
+  history.replaceState(null, '', location.pathname);
+  openTab('video');
+  $('videoUrl').value = shared.match(/https?:\/\/\S+/)[0];
+  if (getToken()) $('videoPreviewBtn').click();
+})();
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
 show();

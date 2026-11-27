@@ -1,5 +1,5 @@
 // 讓 APP 可以加入主畫面。不快取任何資料，只快取畫面檔案。
-const VERSION = 3;
+const VERSION = 4;
 const CACHE = 'shell-v' + VERSION;
 const FILES = ['./', 'index.html', 'style.css', 'app.js', 'config.js', 'manifest.json', 'icon-192.png', 'icon-512.png'];
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES))); self.skipWaiting(); });
