@@ -37,6 +37,7 @@
         <button class="ghost mic" data-for="text">🎤 說話</button>
         <button id="saveBtn">存到 Notion</button>
       </div>
+      <details class="more"><summary>更多欄位（專案狀態、種類、執行日期…）</summary><div class="fields" id="fields-projects"></div></details>
     </div>
 
     <div id="tab-plan" hidden>
@@ -58,6 +59,7 @@
             <option value="-1">不用提醒</option>
           </select>
         </label>
+        <div class="fields" id="fields-tasks"></div>
         <button id="planSaveBtn">存到 Notion</button>
       </div>
       <p class="small" id="pushRow"><button id="pushBtn" class="ghost">🔔 開啟提醒通知</button> <a href="#" id="pushTestBtn">送一則測試通知</a></p>
@@ -71,11 +73,7 @@
         <img id="videoThumb" alt="" hidden>
         <label>標題<input id="videoTitle"></label>
         <p class="small" id="videoMeta"></p>
-        <label>知識庫性質
-          <select id="videoKind">
-            <option>書</option><option>電影</option><option>哲學＆定理＆心理</option><option selected>課堂筆記</option><option>短影片</option><option>冷知識</option>
-          </select>
-        </label>
+        <div class="fields" id="fields-knowledge"></div>
         <label>資料庫範本
           <select id="videoTemplate"><option value="">（讀取中…）</option></select>
         </label>
@@ -90,6 +88,7 @@
   <p id="msg" role="status"></p>
 </main>
 <script src="config.js"></script>
+<script src="fields.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

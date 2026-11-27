@@ -1,6 +1,7 @@
 // 後端入口：只開放少數幾個網址，每個（除了登入）都要有效通行證。
 import { checkPassword, issueToken, verifyToken } from './auth.js';
-import { checkDataSources, createNote, createTask, createPage, listTemplates, createPageWithTemplate } from './notion.js';
+import { checkDataSources, createNote, createTask, createPage, listTemplates, createPageWithTemplate, getDataSource, searchPages } from './notion.js';
+import { DBS, describe, toNotionProps } from './fields.js';
 import { detect, fetchInfo, buildPage } from './video.js';
 import { parseWhen, twIso } from './when.js';
 
@@ -55,7 +56,7 @@ export default {
         const text = typeof body?.text === 'string' ? body.text.trim() : '';
         if (!text) return json({ error: '內容是空的' }, 400, h);
         if (text.length > MAX_TEXT) return json({ error: '內容太長（上限 5000 字）' }, 400, h);
-        return json(await createNote(env, text), 200, h);
+        return json(await createNote(env, text, toNotionProps('projects', body.props)), 200, h);
       }
       if (url.pathname === '/api/vapid' && req.method === 'GET') {
         return json({ key: env.VAPID_PUBLIC_KEY || null }, 200, h);
@@ -81,7 +82,7 @@ export default {
         const before = Math.min(Math.max(Number(body?.remindBefore) || 0, 0), 1440);
         if (!title) return json({ error: '請填寫要做什麼' }, 400, h);
         if (!Number.isFinite(at) || at < Date.now() - 60000 || at > Date.now() + 5 * 365 * 86400000) return json({ error: '時間不正確' }, 400, h);
-        const page = await createTask(env, title, twIso(at));
+        const page = await createTask(env, title, twIso(at), toNotionProps('tasks', body.props));
         if (body?.remind !== false) await store(env).addReminder({ title, remindAt: at - before * 60000, eventAt: at, pageUrl: page.url });
         return json(page, 200, h);
       }
@@ -89,6 +90,18 @@ export default {
         const v = detect((await readJson(req))?.url);
         if (!v) return json({ error: '看不懂這個網址，目前支援 YouTube 和 Instagram' }, 400, h);
         return json({ ...v, ...(await fetchInfo(v)) }, 200, h);
+      }
+      if (url.pathname === '/api/fields' && req.method === 'GET') {
+        const db = url.searchParams.get('db');
+        if (!DBS[db]) return json({ error: '沒有這個資料庫' }, 400, h);
+        return json({ fields: describe(db, await getDataSource(env, env[DBS[db].env])) }, 200, h);
+      }
+      if (url.pathname === '/api/relation-search' && req.method === 'POST') {
+        const body = await readJson(req);
+        const def = DBS[body?.db];
+        if (!def) return json({ error: '沒有這個資料庫' }, 400, h);
+        const q = typeof body.q === 'string' ? body.q.trim().slice(0, 50) : '';
+        return json({ pages: await searchPages(env, env[def.env], def.title, q) }, 200, h);
       }
       if (url.pathname === '/api/video/templates' && req.method === 'GET') {
         return json({ templates: await listTemplates(env) }, 200, h);
@@ -100,6 +113,12 @@ export default {
         const info = await fetchInfo(v);
         if (typeof body.title === 'string' && body.title.trim()) info.title = body.title.trim().slice(0, 200);
         const page = buildPage(env, v, info, body.kind);
+        if (body.props && typeof body.props === 'object') {
+          // 這些欄位交給使用者在確認卡上決定（清空就是不要）
+          for (const k of ['作者', '上傳日期', '課堂筆記通路', '觀看性質', '知識庫性質', '相關連結']) delete page.properties[k];
+          page.properties.相關連結 = { url: v.url };
+          Object.assign(page.properties, toNotionProps('knowledge', body.props));
+        }
         if (typeof body.templateId === 'string' && body.templateId) {
           // 只接受知識庫裡真的有的範本
           const ok = (await listTemplates(env)).some((t) => t.id === body.templateId);

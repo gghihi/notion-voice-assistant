@@ -23,3 +23,15 @@ a { color:inherit; }
 select { font:inherit; padding:10px; border:2px solid var(--line); border-radius:10px; background:#fff; }
 #videoThumb { width:100%; border:2px solid var(--line); border-radius:10px; }
 .hint { margin:8px 0 0; opacity:.75; }
+.fields { display:grid; gap:10px; }
+.fields label { display:grid; gap:4px; font-size:16px; }
+.chips { display:flex; flex-wrap:wrap; gap:6px; }
+.chip { padding:4px 10px; font-size:15px; background:#fff3c4; box-shadow:none; }
+.inline { display:flex; gap:8px; }
+.inline input { flex:1; }
+.small-btn { padding:6px 12px; box-shadow:none; white-space:nowrap; }
+.results { display:grid; gap:4px; }
+.result { text-align:left; background:#fff; box-shadow:none; padding:6px 10px; font-size:15px; }
+details.more { margin-top:14px; }
+details.more summary { cursor:pointer; margin-bottom:10px; }
+.tabs .tab { flex:1; padding:10px 6px; font-size:16px; white-space:nowrap; }

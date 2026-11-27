@@ -53,12 +53,13 @@ export async function checkDataSources(env) {
 }
 
 // 快速筆記 → 工作專案規劃 新版，專案狀態預設「點子階段」
-export async function createNote(env, text) {
+export async function createNote(env, text, extra = {}) {
   const page = await call(env, '/pages', 'POST', {
     parent: { type: 'data_source_id', data_source_id: env.NOTES_DS },
     properties: {
       Title: { title: [{ type: 'text', text: { content: noteTitle(text) } }] },
       專案狀態: { select: { name: '點子階段' } },
+      ...extra,
     },
     children: paragraphs(text),
   });
@@ -66,13 +67,14 @@ export async function createNote(env, text) {
 }
 
 // 日程 → 所有任務清單
-export async function createTask(env, title, startIso) {
+export async function createTask(env, title, startIso, extra = {}) {
   const page = await call(env, '/pages', 'POST', {
     parent: { type: 'data_source_id', data_source_id: env.TASKS_DS },
     properties: {
       任務內容: { title: [{ type: 'text', text: { content: title.slice(0, 200) } }] },
       日期: { date: { start: startIso } },
       已完成: { checkbox: false },
+      ...extra,
     },
   });
   return { url: page.url };
@@ -108,4 +110,14 @@ export async function createPageWithTemplate(env, body, templateId, extraBlocks,
     }
   }
   return { url: page.url };
+}
+
+export async function getDataSource(env, id) { return call(env, '/data_sources/' + id); }
+
+// 找關聯用的頁面（依標題搜尋，最近編輯的在前）
+export async function searchPages(env, dsId, titleProp, q) {
+  const body = { page_size: 10, sorts: [{ timestamp: 'last_edited_time', direction: 'descending' }] };
+  if (q) body.filter = { property: titleProp, title: { contains: q } };
+  const r = await call(env, '/data_sources/' + dsId + '/query', 'POST', body);
+  return (r.results || []).map((p) => ({ id: p.id, title: (p.properties?.[titleProp]?.title || []).map((t) => t.plain_text).join('') || '（無標題）' }));
 }

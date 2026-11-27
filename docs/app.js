@@ -42,10 +42,18 @@ $('saveBtn').onclick = async () => {
   const text = $('text').value.trim();
   if (!text) return msg('先寫點東西吧');
   $('saveBtn').disabled = true; msg('存檔中…');
-  try { await api('/api/note', { text }); $('text').value = ''; msg('✅ 已存到「專案庫」（工作專案規劃 新版），打開 Notion 就看得到'); }
+  try { await api('/api/note', { text, props: panels.projects ? panels.projects.collect() : undefined }); $('text').value = ''; panels.projects?.reset(); msg('✅ 已存到「專案庫」（工作專案規劃 新版），打開 Notion 就看得到'); }
   catch (e) { msg(e.message); }
   finally { $('saveBtn').disabled = false; }
 };
+
+// 欄位面板：第一次用到時才向後端讀取選項
+const panels = {};
+function panel(db) {
+  const defaults = { projects: { 專案狀態: '點子階段' }, tasks: {}, knowledge: { 知識庫性質: '課堂筆記', 觀看性質: '想看' } }[db];
+  return (panels[db] ||= FieldPanel(db, $('fields-' + db), defaults));
+}
+document.querySelector('details.more').addEventListener('toggle', (e) => { if (e.target.open) panel('projects'); });
 
 // 分頁切換
 document.querySelectorAll('.tab').forEach((t) => {
@@ -89,6 +97,7 @@ $('parseBtn').onclick = async () => {
     $('planTitle').value = r.title;
     $('planAt').value = r.at ? toLocalInput(r.at) : '';
     $('planForm').hidden = false;
+    panel('tasks');
     msg(r.at ? '請確認內容，沒問題就按「存到 Notion」' : '沒聽出時間，請在「時間」欄自己選');
   } catch (e) { msg(e.message); }
 };
@@ -99,7 +108,8 @@ $('planSaveBtn').onclick = async () => {
   const before = Number($('planBefore').value);
   $('planSaveBtn').disabled = true; msg('存檔中…');
   try {
-    await api('/api/schedule', { title: $('planTitle').value, at, remind: before >= 0, remindBefore: Math.max(before, 0) });
+    await api('/api/schedule', { title: $('planTitle').value, at, remind: before >= 0, remindBefore: Math.max(before, 0), props: panel('tasks').collect() });
+    panel('tasks').reset();
     $('planText').value = ''; $('planForm').hidden = true;
     msg('✅ 已存到「任務庫」（所有任務清單）' + (before >= 0 ? '，時間到會通知你' : ''));
   } catch (e) { msg(e.message); }
@@ -142,6 +152,11 @@ $('videoPreviewBtn').onclick = async () => {
     if (r.thumbnail) $('videoThumb').src = r.thumbnail;
     $('videoMeta').textContent = [r.platform, r.author && '頻道：' + r.author, r.uploadDate && '上傳：' + r.uploadDate].filter(Boolean).join('　');
     $('videoForm').hidden = false;
+    const kp = panel('knowledge'); await kp.ready; kp.reset();
+    kp.set('作者', r.author ? [r.author.replace(/,/g, ' ')] : []);
+    kp.set('上傳日期', r.uploadDate || '');
+    kp.set('課堂筆記通路', r.platform === 'IG' ? 'IG' : 'YouTube');
+    kp.set('相關連結', r.url);
     msg(r.title ? '確認一下，沒問題就按「存到知識庫」' : '抓不到標題（IG 常擋），可以自己填，或直接存');
   } catch (e) { msg(e.message); }
 };
@@ -165,7 +180,7 @@ document.querySelector('.tab[data-tab="video"]').addEventListener('click', loadT
 $('videoSaveBtn').onclick = async () => {
   $('videoSaveBtn').disabled = true; msg($('videoTemplate').value ? '存檔中…（套用範本約需 5 秒）' : '存檔中…');
   try {
-    const r = await api('/api/video', { url: $('videoUrl').value.trim(), title: $('videoTitle').value, kind: $('videoKind').value, templateId: $('videoTemplate').value });
+    const r = await api('/api/video', { url: $('videoUrl').value.trim(), title: $('videoTitle').value, props: panel('knowledge').collect(), templateId: $('videoTemplate').value });
     $('videoForm').hidden = true; $('videoUrl').value = '';
     $('videoOpen').href = r.url; $('videoDone').hidden = false;
     msg('✅ 已存到「知識庫」，點下面打開 Notion 看看');
