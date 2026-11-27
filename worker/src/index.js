@@ -1,6 +1,8 @@
 // 後端入口：只開放少數幾個網址，每個（除了登入）都要有效通行證。
 import { checkPassword, issueToken, verifyToken } from './auth.js';
-import { checkDataSources, createNote } from './notion.js';
+import { checkDataSources, createNote, createTask } from './notion.js';
+import { parseWhen, twIso } from './when.js';
+import { saveSubscription, addReminder, pushAll, runDueReminders } from './reminders.js';
 
 const MAX_TEXT = 5000;
 
@@ -52,10 +54,43 @@ export default {
         if (text.length > MAX_TEXT) return json({ error: '內容太長（上限 5000 字）' }, 400, h);
         return json(await createNote(env, text), 200, h);
       }
+      if (url.pathname === '/api/vapid' && req.method === 'GET') {
+        return json({ key: env.VAPID_PUBLIC_KEY || null }, 200, h);
+      }
+      if (url.pathname === '/api/push/subscribe' && req.method === 'POST') {
+        const ok = await saveSubscription(env, await readJson(req));
+        return ok ? json({ ok }, 200, h) : json({ error: '推播資料不正確' }, 400, h);
+      }
+      if (url.pathname === '/api/push/test' && req.method === 'POST') {
+        return json(await pushAll(env, { title: '🔔 測試通知', body: '收到這則就代表提醒可以正常運作', url: '' }), 200, h);
+      }
+      if (url.pathname === '/api/schedule/parse' && req.method === 'POST') {
+        const body = await readJson(req);
+        const text = typeof body?.text === 'string' ? body.text.trim().slice(0, 500) : '';
+        if (!text) return json({ error: '內容是空的' }, 400, h);
+        const r = parseWhen(text);
+        return json({ title: r.title, at: r.at }, 200, h);
+      }
+      if (url.pathname === '/api/schedule' && req.method === 'POST') {
+        const body = await readJson(req);
+        const title = typeof body?.title === 'string' ? body.title.trim().slice(0, 200) : '';
+        const at = Number(body?.at);
+        const before = Math.min(Math.max(Number(body?.remindBefore) || 0, 0), 1440);
+        if (!title) return json({ error: '請填寫要做什麼' }, 400, h);
+        if (!Number.isFinite(at) || at < Date.now() - 60000 || at > Date.now() + 5 * 365 * 86400000) return json({ error: '時間不正確' }, 400, h);
+        const page = await createTask(env, title, twIso(at));
+        if (body?.remind !== false) await addReminder(env, { title, remindAt: at - before * 60000, eventAt: at, pageUrl: page.url });
+        return json(page, 200, h);
+      }
       return json({ error: '找不到' }, 404, h);
     } catch (e) {
       console.log('error', e.message, e.code || ''); // 不印出內容或金鑰
       return json({ error: e.status === 401 ? 'Notion 金鑰無效' : '存到 Notion 失敗，請稍後再試' }, 502, h);
     }
+  },
+
+  // Cloudflare 每分鐘自動執行一次（APP 沒開也會跑）
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(runDueReminders(env));
   },
 };

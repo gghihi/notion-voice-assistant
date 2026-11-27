@@ -14,3 +14,7 @@ NOTION_VERSION = "2025-09-03"
 name = "LOGIN_LIMITER"
 namespace_id = "1001"
 simple = { limit = 5, period = 60 }
+
+# 每分鐘檢查一次有沒有到時間的提醒
+[triggers]
+crons = ["* * * * *"]

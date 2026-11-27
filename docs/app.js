@@ -47,20 +47,86 @@ $('saveBtn').onclick = async () => {
   finally { $('saveBtn').disabled = false; }
 };
 
+// 分頁切換
+document.querySelectorAll('.tab').forEach((t) => {
+  t.onclick = () => {
+    document.querySelectorAll('.tab').forEach((x) => x.classList.toggle('on', x === t));
+    $('tab-note').hidden = t.dataset.tab !== 'note';
+    $('tab-plan').hidden = t.dataset.tab !== 'plan';
+    msg('');
+  };
+});
+
 // 語音輸入：用瀏覽器內建的語音辨識，聲音不經過我們的後端
 const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
 let rec = null;
-$('micBtn').onclick = () => {
-  if (!Speech) return msg('這個瀏覽器不支援語音輸入，請改用打字（iPhone 可用鍵盤上的麥克風）');
-  if (rec) { rec.stop(); return; }
-  rec = new Speech();
-  rec.lang = 'zh-TW'; rec.interimResults = true; rec.continuous = true;
-  const before = $('text').value;
-  rec.onresult = (e) => { $('text').value = before + Array.from(e.results).map((r) => r[0].transcript).join(''); };
-  rec.onerror = (e) => msg(e.error === 'not-allowed' ? '請允許使用麥克風' : '語音辨識中斷，可以再按一次');
-  rec.onend = () => { rec = null; $('micBtn').classList.remove('recording'); $('micBtn').textContent = '🎤 說話'; };
-  rec.start(); $('micBtn').classList.add('recording'); $('micBtn').textContent = '⏹ 停止'; msg('');
+document.querySelectorAll('.mic').forEach((btn) => {
+  btn.onclick = () => {
+    if (!Speech) return msg('這個瀏覽器不支援語音輸入，請改用打字（也可以用鍵盤上的麥克風）');
+    if (rec) { rec.stop(); return; }
+    const box = $(btn.dataset.for);
+    rec = new Speech();
+    rec.lang = 'zh-TW'; rec.interimResults = true; rec.continuous = true;
+    const before = box.value;
+    rec.onresult = (e) => { box.value = before + Array.from(e.results).map((r) => r[0].transcript).join(''); };
+    rec.onerror = (e) => msg(e.error === 'not-allowed' ? '請允許使用麥克風' : '語音辨識中斷，可以再按一次');
+    rec.onend = () => { rec = null; btn.classList.remove('recording'); btn.textContent = '🎤 說話'; };
+    rec.start(); btn.classList.add('recording'); btn.textContent = '⏹ 停止'; msg('');
+  };
+});
+
+// 日程：先看懂句子，讓使用者確認時間，再存
+const pad = (n) => String(n).padStart(2, '0');
+function toLocalInput(ts) { const d = new Date(ts); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; }
+
+$('parseBtn').onclick = async () => {
+  const text = $('planText').value.trim();
+  if (!text) return msg('先說或打一句行程吧');
+  msg('理解中…');
+  try {
+    const r = await api('/api/schedule/parse', { text });
+    $('planTitle').value = r.title;
+    $('planAt').value = r.at ? toLocalInput(r.at) : '';
+    $('planForm').hidden = false;
+    msg(r.at ? '請確認內容，沒問題就按「存到 Notion」' : '沒聽出時間，請在「時間」欄自己選');
+  } catch (e) { msg(e.message); }
 };
+
+$('planSaveBtn').onclick = async () => {
+  const at = $('planAt').value ? new Date($('planAt').value).getTime() : NaN;
+  if (!Number.isFinite(at)) return msg('請選擇時間');
+  const before = Number($('planBefore').value);
+  $('planSaveBtn').disabled = true; msg('存檔中…');
+  try {
+    await api('/api/schedule', { title: $('planTitle').value, at, remind: before >= 0, remindBefore: Math.max(before, 0) });
+    $('planText').value = ''; $('planForm').hidden = true;
+    msg('✅ 已存到「所有任務清單」' + (before >= 0 ? '，時間到會通知你' : ''));
+  } catch (e) { msg(e.message); }
+  finally { $('planSaveBtn').disabled = false; }
+};
+
+// 推播通知
+function b64ToBytes(s) { const b = atob(s.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((s.length + 3) % 4)); return Uint8Array.from(b, (c) => c.charCodeAt(0)); }
+async function enablePush() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) throw new Error('這個瀏覽器不支援通知（iPhone 要先加入主畫面再從主畫面打開）');
+  if ((await Notification.requestPermission()) !== 'granted') throw new Error('通知被拒絕了，請到瀏覽器設定裡允許這個網站的通知');
+  const { key } = await api('/api/vapid');
+  if (!key) throw new Error('後端還沒設定推播鑰匙');
+  const reg = await navigator.serviceWorker.ready;
+  const sub = (await reg.pushManager.getSubscription()) || (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(key) }));
+  await api('/api/push/subscribe', sub.toJSON());
+}
+$('pushBtn').onclick = async () => {
+  msg('設定中…');
+  try { await enablePush(); msg('✅ 通知已開啟'); $('pushBtn').textContent = '🔔 通知已開啟'; }
+  catch (e) { msg(e.message); }
+};
+$('pushTestBtn').onclick = async (e) => {
+  e.preventDefault(); msg('送出中…');
+  try { const r = await api('/api/push/test', {}); msg(r.devices ? `已送出到 ${r.ok}/${r.devices} 台裝置` : '還沒有裝置開啟通知，請先按「開啟提醒通知」'); }
+  catch (err) { msg(err.message); }
+};
+if (window.Notification && Notification.permission === 'granted') $('pushBtn').textContent = '🔔 通知已開啟（按一下重新連結）';
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
 show();

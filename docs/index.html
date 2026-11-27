@@ -23,12 +23,43 @@
   </section>
 
   <section id="app" hidden>
-    <div class="tabs"><button class="tab on" data-tab="note">📝 筆記</button></div>
-    <textarea id="text" rows="6" placeholder="打字，或按下面的麥克風用說的"></textarea>
-    <div class="row">
-      <button id="micBtn" class="ghost">🎤 說話</button>
-      <button id="saveBtn">存到 Notion</button>
+    <div class="tabs">
+      <button class="tab on" data-tab="note">📝 筆記</button>
+      <button class="tab" data-tab="plan">📅 日程</button>
     </div>
+
+    <div id="tab-note">
+      <textarea id="text" rows="6" placeholder="打字，或按麥克風用說的"></textarea>
+      <div class="row">
+        <button class="ghost mic" data-for="text">🎤 說話</button>
+        <button id="saveBtn">存到 Notion</button>
+      </div>
+    </div>
+
+    <div id="tab-plan" hidden>
+      <textarea id="planText" rows="3" placeholder="例如：明天下午3點開會"></textarea>
+      <div class="row">
+        <button class="ghost mic" data-for="planText">🎤 說話</button>
+        <button id="parseBtn">看懂這句</button>
+      </div>
+      <div id="planForm" class="card" hidden>
+        <label>要做什麼<input id="planTitle"></label>
+        <label>時間<input id="planAt" type="datetime-local"></label>
+        <label>提醒
+          <select id="planBefore">
+            <option value="0">準時提醒</option>
+            <option value="5">提前 5 分鐘</option>
+            <option value="15">提前 15 分鐘</option>
+            <option value="30">提前 30 分鐘</option>
+            <option value="60">提前 1 小時</option>
+            <option value="-1">不用提醒</option>
+          </select>
+        </label>
+        <button id="planSaveBtn">存到 Notion</button>
+      </div>
+      <p class="small" id="pushRow"><button id="pushBtn" class="ghost">🔔 開啟提醒通知</button> <a href="#" id="pushTestBtn">送一則測試通知</a></p>
+    </div>
+
     <p class="small"><a href="#" id="checkBtn">檢查 Notion 連線</a> · <a href="#" id="logoutBtn">登出</a></p>
   </section>
 

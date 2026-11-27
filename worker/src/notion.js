@@ -64,3 +64,16 @@ export async function createNote(env, text) {
   });
   return { url: page.url };
 }
+
+// 日程 → 所有任務清單
+export async function createTask(env, title, startIso) {
+  const page = await call(env, '/pages', 'POST', {
+    parent: { type: 'data_source_id', data_source_id: env.TASKS_DS },
+    properties: {
+      任務內容: { title: [{ type: 'text', text: { content: title.slice(0, 200) } }] },
+      日期: { date: { start: startIso } },
+      已完成: { checkbox: false },
+    },
+  });
+  return { url: page.url };
+}
