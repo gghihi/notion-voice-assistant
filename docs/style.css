@@ -112,8 +112,9 @@ a { color:var(--text-2); text-underline-offset:3px; }
 #videoOpen { display:inline-block; margin-top:10px; padding:10px 14px; border:2px solid var(--ink); border-radius:12px; background:var(--accent); color:#fff; text-decoration:none; font-weight:800; box-shadow:var(--shadow-sm); }
 
 /* ===== 訊息小卡（在導覽列上方） ===== */
-#msg { position:fixed; left:50%; bottom:calc(92px + env(safe-area-inset-bottom)); transform:translate(-50%, 40px); opacity:0; visibility:hidden; width:max-content; max-width:min(92vw, 560px); padding:10px 16px; border:2px solid var(--ink); border-radius:14px; background:var(--paper); color:var(--text); font-weight:600; font-size:15px; box-shadow:var(--shadow); white-space:pre-line; transition:transform .35s cubic-bezier(.2,.9,.3,1.3), opacity .2s, visibility .35s; z-index:10; }
-#msg.show { transform:translate(-50%, 0) rotate(-1deg); opacity:1; visibility:visible; }
+#msg { display:none; position:fixed; left:50%; bottom:calc(92px + env(safe-area-inset-bottom)); transform:translateX(-50%) rotate(-1deg); width:max-content; max-width:min(92vw, 560px); padding:10px 16px; border:2px solid var(--ink); border-radius:14px; background:var(--paper); color:var(--text); font-weight:600; font-size:15px; box-shadow:var(--shadow); white-space:pre-line; z-index:10; }
+#msg.show { display:block; animation:toast .35s cubic-bezier(.2,.9,.3,1.3); }
+@keyframes toast { from { opacity:0; transform:translate(-50%, 30px); } }
 #msg.ok { background:var(--yellow); color:#111; }
 
 #burst { position:fixed; inset:0; pointer-events:none; z-index:9; overflow:hidden; }
