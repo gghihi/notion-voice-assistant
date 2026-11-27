@@ -34,7 +34,7 @@ window.Sound = (() => {
     error() { note(300, 0, 0.18, 0.15, 'square'); note(220, 0.12, 0.25, 0.12, 'square'); },
   };
 
-  // 噪音（寫字聲、黑膠沙沙聲、鼓的 hi-hat 都用它）
+  // 噪音（寫字聲、沙鈴都用它）
   let noiseBuf = null;
   function noise() {
     const c = audio();
@@ -65,45 +65,45 @@ window.Sound = (() => {
     note(1318, t + 0.05, 0.25, 0.08, 'triangle'); // 寫完「叮」一下
   };
 
-  // 背景配樂：Lo-fi Disco（約 112 BPM：四拍大鼓、反拍 hi-hat、八度跳動貝斯、柔和電鋼琴和弦、黑膠沙沙聲）
-  const BPM = 112, STEP = 60 / BPM / 4; // 一格 = 十六分音符
-  const PROG = [ // 和弦（電鋼琴）與貝斯根音
-    { chord: [293.7, 349.2, 440, 523.3], bass: 73.4 },   // Dm9
+  // 背景配樂：輕鬆 Disco（約 104 BPM：柔和四拍大鼓、輕輕的反拍沙鈴、溫暖跳動貝斯、長音和弦墊底、偶爾一段小旋律）
+  const BPM = 104, STEP = 60 / BPM / 4; // 一格 = 十六分音符
+  const PROG = [ // 大七和弦為主，聽起來明亮放鬆
     { chord: [261.6, 329.6, 392, 493.9], bass: 65.4 },   // Cmaj7
-    { chord: [233.1, 293.7, 349.2, 440], bass: 58.3 },   // Bbmaj7
-    { chord: [220, 277.2, 329.6, 392], bass: 55 },       // A7
+    { chord: [220, 261.6, 329.6, 392], bass: 55 },       // Am7
+    { chord: [174.6, 220, 261.6, 329.6], bass: 43.7 },   // Fmaj7
+    { chord: [196, 246.9, 293.7, 349.2], bass: 49 },     // G7
   ];
-  const BASS = [1, 0, 2, 0, 1, 0, 2, 1, 1, 0, 2, 0, 1, 2, 0, 2]; // 1=根音 2=高八度
-  let bus = null, step = 0, nextAt = 0, crackle = null;
+  const BASS = [1, 0, 0, 2, 0, 0, 1, 0, 1, 0, 0, 2, 0, 1, 0, 0]; // 1=根音 2=高八度，留白多一點比較悠閒
+  const MELODY = { 0: 784, 3: 659, 6: 587, 8: 659, 12: 523 };   // 每兩小節出現一次的小旋律（G E D E C）
+  let bus = null, step = 0, nextAt = 0;
   function kick(t) {
     const c = ctx, o = c.createOscillator(), g = c.createGain();
-    o.frequency.setValueAtTime(130, t); o.frequency.exponentialRampToValueAtTime(45, t + 0.12);
-    g.gain.setValueAtTime(0.5, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.3);
-    o.connect(g); g.connect(bus); o.start(t); o.stop(t + 0.32);
+    o.frequency.setValueAtTime(110, t); o.frequency.exponentialRampToValueAtTime(50, t + 0.1);
+    g.gain.setValueAtTime(0.28, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
+    o.connect(g); g.connect(bus); o.start(t); o.stop(t + 0.25);
   }
-  function tone(freq, t, dur, vol, type) {
+  function tone(freq, t, dur, vol, type, attack = 0.015) {
     const c = ctx, o = c.createOscillator(), g = c.createGain();
     o.type = type; o.frequency.value = freq;
-    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + 0.015);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + attack);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     o.connect(g); g.connect(bus); o.start(t); o.stop(t + dur + 0.05);
   }
   function schedule() {
     while (nextAt < ctx.currentTime + 0.25) {
-      const s = step % 16, bar = PROG[Math.floor(step / 16) % PROG.length], t = nextAt;
-      if (s % 4 === 0) kick(t);                                             // 四拍大鼓
-      if (s % 4 === 2) hit(t - ctx.currentTime, 0.04, 0.07, 'highpass', 9000, bus); // 反拍 hi-hat（輕一點）
-      if (s === 4 || s === 12) hit(t - ctx.currentTime, 0.12, 0.1, 'bandpass', 1500, bus, 1); // 拍手（柔一點）
-      if (BASS[s]) tone(bar.bass * BASS[s], t, STEP * 1.6, 0.22, 'triangle');   // 跳動貝斯
-      if (s === 0 || s === 6 || s === 10) bar.chord.forEach((f) => tone(f, t, STEP * (s === 0 ? 5 : 3), 0.045, 'sine')); // 切分和弦
-      if (Math.random() < 0.06) hit(t - ctx.currentTime + Math.random() * STEP, 0.008, 0.05, 'bandpass', 1500 + Math.random() * 2000, bus, 2); // 黑膠偶爾的「啵」
+      const s = step % 16, barNo = Math.floor(step / 16), bar = PROG[barNo % PROG.length], t = nextAt, at = t - ctx.currentTime;
+      if (s % 4 === 0) kick(t);                                                    // 柔和四拍大鼓
+      if (s % 4 === 2) hit(at, 0.03, 0.035, 'highpass', 7000, bus);               // 很輕的反拍沙鈴
+      if (BASS[s]) tone(bar.bass * BASS[s], t, STEP * 2.2, 0.2, 'sine');           // 溫暖貝斯
+      if (s === 0) bar.chord.forEach((f) => tone(f, t, STEP * 15, 0.035, 'triangle', 0.25)); // 長音和弦，慢慢淡入
+      if (barNo % 2 === 1 && MELODY[s]) tone(MELODY[s], t, STEP * 3, 0.05, 'sine', 0.02);   // 小旋律
       nextAt += STEP; step++;
     }
   }
   function startBgm() {
     const c = audio(); if (!c || bgmTimer) return;
-    bus = c.createGain(); bus.gain.value = 0.32;
-    const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2200; // lo-fi 悶悶的感覺
+    bus = c.createGain(); bus.gain.value = 0.3;
+    const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 3200; // 柔一點，不刺耳
     bus.connect(lp); lp.connect(master);
     step = 0; nextAt = c.currentTime + 0.1;
     schedule(); bgmTimer = setInterval(schedule, 100);
