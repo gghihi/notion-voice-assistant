@@ -1,6 +1,6 @@
 // 後端入口：只開放少數幾個網址，每個（除了登入）都要有效通行證。
 import { checkPassword, issueToken, verifyToken } from './auth.js';
-import { checkDataSources, createNote, createTask, createPage, listTemplates, createPageWithTemplate, getDataSource, searchPages, getPage, pageTitle } from './notion.js';
+import { checkDataSources, createNote, createTask, createPage, listTemplates, createPageWithTemplate, getDataSource, searchPages, getPage, pageTitle, pageIdFromUrl, trashPage } from './notion.js';
 import { DBS, describe, toNotionProps, fromNotionProps } from './fields.js';
 import { detect, fetchInfo, buildPage } from './video.js';
 import { parseWhen, twIso } from './when.js';
@@ -77,7 +77,16 @@ export default {
         return json({ items: await store(env).listSaved() }, 200, h);
       }
       if (url.pathname === '/api/board/delete' && req.method === 'POST') {
-        const ok = await store(env).removeSaved((await readJson(req))?.id);
+        const body = await readJson(req);
+        if (body?.alsoNotion === true) {
+          // 只能刪「公佈欄上有紀錄」的頁面，不能拿來刪 Notion 裡任意頁面
+          const item = await store(env).getSaved(body.id);
+          const pid = item && pageIdFromUrl(item.url);
+          if (!pid) return json({ error: '找不到這筆紀錄，可能已經過期' }, 404, h);
+          try { await trashPage(env, pid); }
+          catch (e) { if (e.status !== 404) throw e; } // Notion 裡已經不在了就當作刪好
+        }
+        const ok = await store(env).removeSaved(body?.id);
         return json({ ok }, 200, h);
       }
       if (url.pathname === '/api/vapid' && req.method === 'GET') {

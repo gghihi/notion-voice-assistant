@@ -22,3 +22,10 @@ test('公佈欄：新增、排序、刪除、7 天後消失', async () => {
   items = await listSaved(env, 1000 + KEEP_MS + 1);
   assert.equal(items.length, 0);
 });
+
+import { pageIdFromUrl } from '../src/notion.js';
+test('從 Notion 網址取頁面編號', () => {
+  assert.equal(pageIdFromUrl('https://www.notion.so/abc-0123456789abcdef0123456789abcdef'), '0123456789abcdef0123456789abcdef');
+  assert.equal(pageIdFromUrl('https://app.notion.com/p/0123456789abcdef0123456789abcdef?pvs=4'), '0123456789abcdef0123456789abcdef');
+  assert.equal(pageIdFromUrl('https://evil.example/x'), null);
+});

@@ -2,7 +2,7 @@
 // 用「鬧鐘」（alarm）在下一個提醒時間叫醒自己，不用每分鐘檢查。
 import { DurableObject } from 'cloudflare:workers';
 import { readFileSync } from './schema.js';
-import { addSaved, listSaved, removeSaved } from './board.js';
+import { addSaved, listSaved, removeSaved, getSaved } from './board.js';
 import { saveSubscription, addReminder, pushAll, runDueReminders, nextReminderAt } from './reminders.js';
 
 // 把 Durable Object 的 SQL 包成和 D1 一樣的用法，讓 reminders.js 兩邊共用
@@ -37,6 +37,7 @@ export class Store extends DurableObject {
   async pushAll(msg) { return pushAll(this.e, msg); }
   async addSaved(item) { return addSaved(this.e, item); }
   async listSaved() { return listSaved(this.e); }
+  async getSaved(id) { return getSaved(this.e, id); }
   async removeSaved(id) { return removeSaved(this.e, id); }
   async alarm() { await runDueReminders(this.e); await this.reschedule(); }
 }

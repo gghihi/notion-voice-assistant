@@ -133,3 +133,14 @@ export function pageTitle(page) {
   const t = Object.values(page.properties || {}).find((p) => p.type === 'title');
   return (t?.title || []).map((x) => x.plain_text).join('') || '（無標題）';
 }
+
+// 從 Notion 網址取出頁面編號（網址最後的 32 碼）
+export function pageIdFromUrl(u) {
+  const m = String(u || '').match(/([0-9a-f]{32})(?:[?#]|$)/i);
+  return m ? m[1] : null;
+}
+
+// 把頁面放進 Notion 的垃圾桶（30 天內可以在 Notion 裡救回來）
+export async function trashPage(env, pageId) {
+  await call(env, '/pages/' + pageId, 'PATCH', { in_trash: true });
+}

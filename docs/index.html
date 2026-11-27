@@ -114,6 +114,18 @@
     <p class="hint">最近 7 天存進 Notion 的東西，滿 7 天會自動撕掉。點標題可以打開 Notion。</p>
     <div class="notes" id="boardList"></div>
   </section>
+  <div class="sheet-bg" id="delBg" hidden></div>
+  <section class="ask" id="del" hidden role="dialog" aria-label="刪除">
+    <div class="ask-emoji">🗑️</div>
+    <h2>要怎麼處理？</h2>
+    <p id="delText"></p>
+    <div class="choices">
+      <button class="pill" id="delBoard" type="button">📌 只從公佈欄撕掉</button>
+      <button class="pill danger-red" id="delNotion" type="button">🗑️ 連 Notion 一起刪</button>
+      <button class="pill danger" id="delCancel" type="button">取消</button>
+    </div>
+    <p class="hint">Notion 的頁面會放進 Notion 垃圾桶，30 天內可以在 Notion 裡救回來。</p>
+  </section>
   <div class="sheet-bg" id="askBg" hidden></div>
   <section class="ask" id="ask" hidden role="dialog" aria-label="存好了">
     <div class="ask-emoji">📝✨</div>

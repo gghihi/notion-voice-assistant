@@ -10,7 +10,7 @@ const msg = (t) => {
   m.textContent = t;
   m.classList.toggle('ok', t.startsWith('✅'));
   m.classList.add('show');
-  if (t.startsWith('✅')) { celebrate(); navigator.vibrate?.(30); Sound.play(t.includes('已存到') ? 'write' : 'success'); }
+  if (t.startsWith('✅')) { celebrate(); navigator.vibrate?.(30); Sound.play('success'); }
   if (!/中…/.test(t)) msgTimer = setTimeout(() => m.classList.remove('show'), t.startsWith('✅') ? 4000 : 6000);
 };
 function celebrate(n = 14) {
@@ -81,17 +81,37 @@ function paintBoard() {
     const title = document.createElement(it.url ? 'a' : 'span'); title.className = 'title'; title.textContent = it.title;
     if (it.url && /^https:\/\/([\w-]+\.)?notion\.(so|com|site)\//.test(it.url)) { title.href = it.url; title.target = '_blank'; title.rel = 'noopener'; }
     const del = document.createElement('button'); del.type = 'button'; del.className = 'del'; del.textContent = '✕'; del.setAttribute('aria-label', '從公佈欄撕掉');
-    del.onclick = async () => {
-      if (!confirm(`要把「${it.title}」從公佈欄撕掉嗎？\n（只會從公佈欄移除，Notion 裡的資料不會被刪）`)) return;
-      note.classList.add('tearing');
-      try { await api('/api/board/delete', { id: it.id }); boardItems = boardItems.filter((x) => x.id !== it.id); setTimeout(paintBoard, 250); }
-      catch (e) { note.classList.remove('tearing'); msg(e.message); }
-    };
+    del.onclick = () => askDelete(it, note);
     const top = document.createElement('div'); top.className = 'note-top'; top.append(tag, del);
     note.append(top, title, date);
     list.append(note);
   }
 }
+// 撕掉便利貼：選「只撕公佈欄」或「連 Notion 一起刪」
+let delTarget = null;
+function askDelete(it, note) {
+  delTarget = { it, note };
+  $('delText').textContent = `「${it.title}」`;
+  $('del').hidden = false; $('delBg').hidden = false;
+}
+function closeDel() { $('del').hidden = true; $('delBg').hidden = true; delTarget = null; }
+async function doDelete(alsoNotion) {
+  if (!delTarget) return;
+  const { it, note } = delTarget;
+  closeDel();
+  note.classList.add('tearing');
+  try {
+    await api('/api/board/delete', { id: it.id, alsoNotion });
+    boardItems = boardItems.filter((x) => x.id !== it.id);
+    setTimeout(paintBoard, 250);
+    msg(alsoNotion ? '🗑️ 已從 Notion 刪除（在 Notion 垃圾桶可以救回）' : '📌 已從公佈欄撕掉');
+  } catch (e) { note.classList.remove('tearing'); msg(e.message); }
+}
+$('delBoard').onclick = () => doDelete(false);
+$('delNotion').onclick = () => doDelete(true);
+$('delCancel').onclick = closeDel;
+$('delBg').onclick = closeDel;
+
 async function loadBoard() {
   if (!getToken()) return;
   try { boardItems = (await api('/api/board')).items; paintBoard(); } catch {}

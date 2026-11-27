@@ -179,3 +179,8 @@ h1 .snap { display:inline-block; margin-left:4px; font-size:.8em; animation:snap
 /* 標題變長：按鈕移到最上方一列，標題不會被擋住 */
 .hero { padding-top:46px; }
 h1 { font-size:clamp(24px, 7.4vw, 34px); white-space:nowrap; }
+.choices { display:grid; gap:10px; margin-top:14px; }
+.choices .pill { padding:9px 14px; }
+.pill.danger-red { background:#ff5a5a; color:#fff; }
+#del { z-index:23; } #delBg { z-index:22; }
+#del .hint { font-size:12px; margin-top:12px; }

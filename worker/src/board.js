@@ -18,3 +18,8 @@ export async function removeSaved(env, id) {
   const { meta } = await env.DB.prepare('DELETE FROM saved WHERE id = ?').bind(Number(id) || 0).run();
   return meta.changes > 0;
 }
+
+export async function getSaved(env, id) {
+  const { results } = await env.DB.prepare('SELECT id, db, title, url FROM saved WHERE id = ?').bind(Number(id) || 0).all();
+  return results[0] || null;
+}
