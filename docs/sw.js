@@ -1,7 +1,7 @@
 // 讓 APP 可以加入主畫面。不快取任何資料，只快取畫面檔案。
-const VERSION = 18;
+const VERSION = 19;
 const CACHE = 'shell-v' + VERSION;
-const FILES = ['./', 'index.html', 'style.css', 'app.js', 'config.js', 'fields.js', 'manifest.json', 'icon-192.png', 'icon-512.png', 'logo.png', 'theme.js'];
+const FILES = ['./', 'index.html', 'style.css', 'app.js', 'config.js', 'fields.js', 'manifest.json', 'icon-192.png', 'icon-512.png', 'logo.png', 'theme.js', 'sound.js'];
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES))); self.skipWaiting(); });
 self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k))))); self.clients.claim(); });
 self.addEventListener('fetch', (e) => {

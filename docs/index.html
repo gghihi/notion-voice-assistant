@@ -17,7 +17,7 @@
 <body>
 <main>
   <header class="hero">
-    <button class="theme-btn" id="themeBtn" type="button" aria-label="切換深夜模式">🌙</button>
+    <button class="theme-btn" id="settingsBtn" type="button" aria-label="設定">⚙️</button>
     <button class="sticker" id="pageIcon" type="button" aria-label="戳一下"><img src="logo.png" alt=""></button>
     <div class="hero-text">
       <h1>語音<span class="hl">助手</span></h1>
@@ -75,7 +75,6 @@
         <div class="fields" id="fields-tasks"></div>
         <button id="planSaveBtn">確認送出</button>
       </div>
-      <p class="small" id="pushRow"><button id="pushBtn" class="ghost">🔔 開啟提醒通知</button> <a href="#" id="pushTestBtn">送一則測試通知</a></p>
     </div>
 
     <div id="tab-video" hidden>
@@ -93,13 +92,26 @@
       <p id="videoDone" hidden><a id="videoOpen" href="#" target="_blank" rel="noopener">👉 打開 Notion 查看</a></p>
     </div>
 
-    <p class="small"><a href="#" id="checkBtn">檢查 Notion 連線</a> · <a href="#" id="logoutBtn">登出</a></p>
   </section>
 
+  <div class="sheet-bg" id="sheetBg" hidden></div>
+  <section class="sheet" id="settings" hidden aria-label="設定">
+    <div class="sheet-head"><h2>⚙️ 設定</h2><button class="x" id="settingsClose" type="button" aria-label="關閉">✕</button></div>
+    <div class="set-row"><span>🌙 深夜模式</span><button class="switch" id="themeSwitch" type="button" role="switch" aria-checked="false"><i></i></button></div>
+    <div class="set-row"><span>🔊 音效</span><button class="switch" id="sfxSwitch" type="button" role="switch" aria-checked="false"><i></i></button></div>
+    <div class="set-row"><span>🎵 背景配樂</span><button class="switch" id="bgmSwitch" type="button" role="switch" aria-checked="false"><i></i></button></div>
+    <div class="set-group app-only">
+      <div class="set-row"><span>🔔 提醒通知</span><button class="pill" id="pushBtn" type="button">開啟</button></div>
+      <div class="set-row"><span>📨 測試通知</span><button class="pill" id="pushTestBtn" type="button">送一則</button></div>
+      <div class="set-row"><span>🔗 Notion 連線</span><button class="pill" id="checkBtn" type="button">檢查</button></div>
+      <div class="set-row"><span>👋 登出</span><button class="pill danger" id="logoutBtn" type="button">登出</button></div>
+    </div>
+  </section>
   <div id="msg" role="status" aria-live="polite"></div>
   <div id="burst" aria-hidden="true"></div>
 </main>
 <script src="config.js"></script>
+<script src="sound.js"></script>
 <script src="fields.js"></script>
 <script src="app.js"></script>
 </body>

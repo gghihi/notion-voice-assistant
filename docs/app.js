@@ -10,7 +10,7 @@ const msg = (t) => {
   m.textContent = t;
   m.classList.toggle('ok', t.startsWith('✅'));
   m.classList.add('show');
-  if (t.startsWith('✅')) { celebrate(); navigator.vibrate?.(30); }
+  if (t.startsWith('✅')) { celebrate(); navigator.vibrate?.(30); Sound.play('success'); }
   if (!/中…/.test(t)) msgTimer = setTimeout(() => m.classList.remove('show'), t.startsWith('✅') ? 4000 : 6000);
 };
 function celebrate(n = 14) {
@@ -42,25 +42,39 @@ function celebrate(n = 14) {
 $('pageIcon').onclick = () => {
   const el = $('pageIcon');
   el.classList.remove('spin'); void el.offsetWidth; el.classList.add('spin');
-  celebrate(5);
+  celebrate(5); Sound.play('pop');
 };
 
-// 深夜模式切換（記住選擇；沒選過就跟著手機設定）
+// ===== 設定面板 =====
 function isDark() {
   const t = document.documentElement.dataset.theme;
   return t ? t === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
 }
-function paintThemeBtn() {
-  $('themeBtn').textContent = isDark() ? '☀️' : '🌙';
+const setSwitch = (id, on) => $(id).setAttribute('aria-checked', on ? 'true' : 'false');
+function paintSettings() {
+  setSwitch('themeSwitch', isDark());
+  setSwitch('sfxSwitch', Sound.sfx);
+  setSwitch('bgmSwitch', Sound.bgm);
   document.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.setAttribute('content', isDark() ? '#121212' : '#fbfaf7'));
+  document.querySelector('#settings .app-only').hidden = !getToken();
+  if (window.Notification && Notification.permission === 'granted') $('pushBtn').textContent = '重新連結';
 }
-$('themeBtn').onclick = () => {
+function openSettings(open) {
+  $('settings').hidden = !open; $('sheetBg').hidden = !open;
+  if (open) paintSettings();
+}
+$('settingsBtn').onclick = () => { Sound.play('tap'); openSettings(true); };
+$('settingsClose').onclick = () => openSettings(false);
+$('sheetBg').onclick = () => openSettings(false);
+$('themeSwitch').onclick = () => {
   const next = isDark() ? 'light' : 'dark';
   document.documentElement.dataset.theme = next;
   try { localStorage.setItem('theme', next); } catch {}
-  paintThemeBtn();
+  Sound.play('tap'); paintSettings();
 };
-paintThemeBtn();
+$('sfxSwitch').onclick = () => { Sound.setSfx(!Sound.sfx); paintSettings(); };
+$('bgmSwitch').onclick = () => { Sound.setBgm(!Sound.bgm); paintSettings(); };
+paintSettings();
 document.body.dataset.tab = 'note';
 
 function getToken() { try { return localStorage.getItem('token'); } catch { return null; } }
@@ -90,10 +104,10 @@ $('loginBtn').onclick = async () => {
   catch (e) { msg(e.message); }
 };
 $('pw').onkeydown = (e) => { if (e.key === 'Enter') $('loginBtn').click(); };
-$('logoutBtn').onclick = (e) => { e.preventDefault(); setToken(null); show(); msg('已登出'); };
+$('logoutBtn').onclick = () => { setToken(null); openSettings(false); show(); msg('已登出'); };
 
-$('checkBtn').onclick = async (e) => {
-  e.preventDefault(); msg('檢查中…');
+$('checkBtn').onclick = async () => {
+  openSettings(false); msg('檢查中…');
   try { const r = await api('/api/health'); msg(Object.entries(r.notion).map(([k, v]) => `${k}：${v === 'ok' ? '✅ 已連上' : '❌ ' + v}`).join('\n')); }
   catch (err) { msg(err.message); }
 };
@@ -128,6 +142,7 @@ document.querySelectorAll('.tab').forEach((t) => {
   t.onclick = () => {
     document.querySelectorAll('.tab').forEach((x) => x.classList.toggle('on', x === t));
     document.body.dataset.tab = t.dataset.tab;
+    Sound.play('tap');
     $('tab-note').hidden = t.dataset.tab !== 'note';
     $('tab-plan').hidden = t.dataset.tab !== 'plan';
     $('tab-video').hidden = t.dataset.tab !== 'video';
@@ -198,15 +213,14 @@ async function enablePush() {
 }
 $('pushBtn').onclick = async () => {
   msg('設定中…');
-  try { await enablePush(); msg('✅ 通知已開啟'); $('pushBtn').textContent = '🔔 通知已開啟'; }
+  try { await enablePush(); msg('✅ 通知已開啟'); $('pushBtn').textContent = '重新連結'; }
   catch (e) { msg(e.message); }
 };
-$('pushTestBtn').onclick = async (e) => {
-  e.preventDefault(); msg('送出中…');
+$('pushTestBtn').onclick = async () => {
+  openSettings(false); msg('送出中…');
   try { const r = await api('/api/push/test', {}); msg(r.devices ? `已送出到 ${r.ok}/${r.devices} 台裝置` : '還沒有裝置開啟通知，請先按「開啟提醒通知」'); }
   catch (err) { msg(err.message); }
 };
-if (window.Notification && Notification.permission === 'granted') $('pushBtn').textContent = '🔔 通知已開啟（按一下重新連結）';
 
 // 影片：抓資料 → 確認 → 存到知識庫
 function openTab(name) { document.querySelector(`.tab[data-tab="${name}"]`).click(); }
