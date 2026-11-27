@@ -15,6 +15,11 @@ name = "LOGIN_LIMITER"
 namespace_id = "1001"
 simple = { limit = 5, period = 60 }
 
-# 每分鐘檢查一次有沒有到時間的提醒
-[triggers]
-crons = ["* * * * *"]
+# 提醒的儲存空間（Durable Object，內建 SQLite，免費方案可用）
+[[durable_objects.bindings]]
+name = "STORE"
+class_name = "Store"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Store"]

@@ -44,3 +44,8 @@ export async function runDueReminders(env, now = Date.now()) {
   await env.DB.prepare('DELETE FROM reminders WHERE sent = 1 AND remind_at < ?').bind(now - 30 * 86400000).run();
   return results.length;
 }
+
+export async function nextReminderAt(env) {
+  const { results } = await env.DB.prepare('SELECT MIN(remind_at) AS at FROM reminders WHERE sent = 0').all();
+  return results[0]?.at ?? null;
+}

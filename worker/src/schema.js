@@ -1,0 +1,2 @@
+// 由 migrations/0001_init.sql 產生
+export const readFileSync = () => "\nCREATE TABLE push_subs (\n  endpoint TEXT PRIMARY KEY,\n  p256dh TEXT NOT NULL,\n  auth TEXT NOT NULL,\n  created_at INTEGER NOT NULL\n);\n\nCREATE TABLE reminders (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  title TEXT NOT NULL,\n  remind_at INTEGER NOT NULL,   \n  event_at INTEGER NOT NULL,\n  page_url TEXT,\n  sent INTEGER NOT NULL DEFAULT 0\n);\nCREATE INDEX idx_reminders_due ON reminders (sent, remind_at);\n";

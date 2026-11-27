@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { checkPassword, issueToken, verifyToken } from '../src/auth.js';
 import { paragraphs, noteTitle } from '../src/notion.js';
-import worker from '../src/index.js';
+import worker from '../src/handler.js';
 
 const env = { APP_PASSWORD: 'right-pw', SESSION_SECRET: 's3cret', ALLOWED_ORIGIN: 'https://gghihi.github.io' };
 
