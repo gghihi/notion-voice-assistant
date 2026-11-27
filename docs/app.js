@@ -10,7 +10,7 @@ const msg = (t) => {
   m.textContent = t;
   m.classList.toggle('ok', t.startsWith('✅'));
   m.classList.add('show');
-  if (t.startsWith('✅')) { celebrate(); navigator.vibrate?.(30); Sound.play('success'); }
+  if (t.startsWith('✅')) { celebrate(); navigator.vibrate?.(30); Sound.play(t.includes('已存到') ? 'write' : 'success'); }
   if (!/中…/.test(t)) msgTimer = setTimeout(() => m.classList.remove('show'), t.startsWith('✅') ? 4000 : 6000);
 };
 function celebrate(n = 14) {
@@ -45,6 +45,12 @@ $('pageIcon').onclick = () => {
   celebrate(5); Sound.play('pop');
 };
 
+// 所有凸起的按鈕：按下就有「咔」一聲（圖示貼紙另有自己的聲音）
+document.addEventListener('pointerdown', (e) => {
+  const b = e.target.closest('button');
+  if (b && !b.disabled && b.id !== 'pageIcon') Sound.play('tap');
+});
+
 // ===== 設定面板 =====
 function isDark() {
   const t = document.documentElement.dataset.theme;
@@ -63,14 +69,14 @@ function openSettings(open) {
   $('settings').hidden = !open; $('sheetBg').hidden = !open;
   if (open) paintSettings();
 }
-$('settingsBtn').onclick = () => { Sound.play('tap'); openSettings(true); };
+$('settingsBtn').onclick = () => openSettings(true);
 $('settingsClose').onclick = () => openSettings(false);
 $('sheetBg').onclick = () => openSettings(false);
 $('themeSwitch').onclick = () => {
   const next = isDark() ? 'light' : 'dark';
   document.documentElement.dataset.theme = next;
   try { localStorage.setItem('theme', next); } catch {}
-  Sound.play('tap'); paintSettings();
+  paintSettings();
 };
 $('sfxSwitch').onclick = () => { Sound.setSfx(!Sound.sfx); paintSettings(); };
 $('bgmSwitch').onclick = () => { Sound.setBgm(!Sound.bgm); paintSettings(); };
@@ -142,7 +148,6 @@ document.querySelectorAll('.tab').forEach((t) => {
   t.onclick = () => {
     document.querySelectorAll('.tab').forEach((x) => x.classList.toggle('on', x === t));
     document.body.dataset.tab = t.dataset.tab;
-    Sound.play('tap');
     $('tab-note').hidden = t.dataset.tab !== 'note';
     $('tab-plan').hidden = t.dataset.tab !== 'plan';
     $('tab-video').hidden = t.dataset.tab !== 'video';
