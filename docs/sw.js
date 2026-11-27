@@ -1,5 +1,5 @@
 // 讓 APP 可以加入主畫面。不快取任何資料，只快取畫面檔案。
-const VERSION = 25;
+const VERSION = 26;
 const CACHE = 'shell-v' + VERSION;
 const FILES = ['./', 'index.html', 'style.css', 'app.js', 'config.js', 'fields.js', 'manifest.json', 'icon-192.png', 'icon-512.png', 'logo.png', 'theme.js', 'sound.js'];
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES))); self.skipWaiting(); });
@@ -14,7 +14,7 @@ self.addEventListener('fetch', (e) => {
 self.addEventListener('push', (e) => {
   let m = {};
   try { m = e.data ? e.data.json() : {}; } catch {}
-  e.waitUntil(self.registration.showNotification(m.title || '語音助手', { body: m.body || '', tag: m.tag, data: { url: m.url || '' }, requireInteraction: true }));
+  e.waitUntil(self.registration.showNotification(m.title || 'Notion 請助手🫰', { body: m.body || '', tag: m.tag, data: { url: m.url || '' }, requireInteraction: true }));
 });
 // 點通知 → 打開 Notion 那一筆（只允許 notion 網址），否則打開 APP
 self.addEventListener('notificationclick', (e) => {

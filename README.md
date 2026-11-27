@@ -1,4 +1,4 @@
-# Notion 語音 AI 助手（個人用）
+# Notion 請助手🫰（個人用）
 
 用語音或打字快速記筆記，存進自己的 Notion。網頁放在 GitHub Pages（`docs/`），後端是 Cloudflare Worker（`worker/`）。
 

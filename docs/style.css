@@ -174,3 +174,5 @@ a { color:var(--text-2); text-underline-offset:3px; }
 .note.tearing { transform:rotate(14deg) translateY(30px) !important; opacity:0; }
 .empty { grid-column:1/-1; text-align:center; padding:30px 0; color:#2a1d0c; font-weight:700; }
 :root[data-theme="dark"] .empty { color:#f3e6d2; }
+h1 .snap { display:inline-block; margin-left:4px; font-size:.8em; animation:snap 2.4s ease-in-out infinite; transform-origin:70% 80%; }
+@keyframes snap { 0%, 70%, 100% { transform:rotate(0); } 78% { transform:rotate(-18deg) scale(1.15); } 86% { transform:rotate(10deg); } }
