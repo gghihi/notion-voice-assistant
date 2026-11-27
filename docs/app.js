@@ -99,7 +99,7 @@ function toLocalInput(ts) { const d = new Date(ts); return `${d.getFullYear()}-$
 $('parseBtn').onclick = async () => {
   const text = $('planText').value.trim();
   if (!text) return msg('先說或打一句任務吧');
-  msg('理解中…');
+  msg('讀取中…');
   try {
     const r = await api('/api/schedule/parse', { text });
     $('planTitle').value = r.title;
@@ -152,7 +152,7 @@ function openTab(name) { document.querySelector(`.tab[data-tab="${name}"]`).clic
 $('videoPreviewBtn').onclick = async () => {
   const url = $('videoUrl').value.trim();
   if (!url) return msg('先貼上影片網址');
-  $('videoDone').hidden = true; msg('抓影片資料中…');
+  $('videoDone').hidden = true; msg('抓影片資料中…（約 3 秒）');
   try {
     const r = await api('/api/video/preview', { url });
     $('videoTitle').value = r.title || '';
@@ -165,7 +165,7 @@ $('videoPreviewBtn').onclick = async () => {
     kp.set('上傳日期', r.uploadDate || '');
     kp.set('課堂筆記通路', r.platform === 'IG' ? 'IG' : 'YouTube');
     kp.set('相關連結', r.url);
-    msg(r.title ? '確認一下，沒問題就按「確認送出」' : '抓不到標題（IG 常擋），可以自己填，或直接存');
+    msg(r.title ? '選好欄位後按「確認送出」' : '抓不到標題（IG 常擋），可以自己填，或直接存');
   } catch (e) { msg(e.message); }
 };
 // 範本清單：每個資料庫第一次用到時讀取。知識庫預設「課堂筆記模板」，其他用 Notion 設的預設範本
