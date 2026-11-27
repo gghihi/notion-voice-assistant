@@ -165,7 +165,7 @@ export default {
       return json({ error: '找不到' }, 404, h);
     } catch (e) {
       console.log('error', e.message, e.code || ''); // 不印出內容或金鑰
-      return json({ error: e.status === 401 ? 'Notion 金鑰無效' : '存到 Notion 失敗，請稍後再試' }, 502, h);
+      return json({ error: e.status === 401 ? 'Notion 金鑰無效' : 'Notion 回報錯誤（' + (e.code || e.message) + '），請稍後再試' }, 502, h);
     }
   },
 

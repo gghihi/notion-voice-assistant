@@ -194,10 +194,13 @@ async function applyTemplate(db) {
   let values = {};
   if (id) {
     msg('讀取範本預設值…');
-    try { values = (await api(`/api/template-values?db=${db}&id=${encodeURIComponent(id)}`)).values; msg(''); }
-    catch (e) { msg('範本預設值讀取失敗，欄位改用一般預設'); }
+    try {
+      values = (await api(`/api/template-values?db=${db}&id=${encodeURIComponent(id)}`)).values;
+      const keys = Object.keys(values);
+      msg(keys.length ? '已帶入範本預設：' + keys.join('、') : '這個範本沒有預先填好的欄位');
+    } catch (e) { msg('範本預設值讀取失敗：' + e.message); }
   }
-  if ($('tpl-' + db).value === id) await panel(db).useTemplate(values);
+  if ($('tpl-' + db).value === id) await panel(db).useTemplate(id ? values : null);
 }
 ['projects', 'tasks', 'knowledge'].forEach((db) => { $('tpl-' + db).onchange = () => applyTemplate(db); });
 

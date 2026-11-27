@@ -94,7 +94,7 @@ window.FieldPanel = function FieldPanel(db, box, baseDefaults = {}) {
     ready,
     set(name, v) { setters[name]?.(v); },
     // 套用範本的預設值（範本有填的蓋過 APP 預設），然後重設畫面
-    async useTemplate(tplValues) { await ready; defaults = { ...baseDefaults, ...(tplValues || {}) }; this.reset(); },
+    async useTemplate(tplValues) { await ready; defaults = tplValues ? { ...tplValues } : { ...baseDefaults }; this.reset(); },
     reset() { for (const k of Object.keys(setters)) setters[k](defaults[k]); },
     collect() { const out = {}; for (const [k, v] of Object.entries(values)) if (Array.isArray(v) ? v.length : v) out[k] = v; return out; },
   };
