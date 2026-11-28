@@ -88,7 +88,20 @@ export default {
         }
       }
       if (url.pathname === '/api/board' && req.method === 'GET') {
-        return json({ items: await store(env).listSaved() }, 200, h);
+        // 和 Notion 對一下：已經在 Notion 被丟進垃圾桶（或不見）的，從公佈欄一起拿掉
+        const items = await store(env).listSaved();
+        const checked = await Promise.all(items.slice(0, 40).map(async (it) => {
+          const pid = pageIdFromUrl(it.url);
+          if (!pid) return it;
+          try {
+            const pg = await getPage(env, pid);
+            if (pg.in_trash || pg.archived) { await store(env).removeSaved(it.id); return null; }
+          } catch (e) {
+            if (e.status === 404) { await store(env).removeSaved(it.id); return null; }
+          }
+          return it;
+        }));
+        return json({ items: checked.filter(Boolean).concat(items.slice(40)) }, 200, h);
       }
       if (url.pathname === '/api/board/delete' && req.method === 'POST') {
         const body = await readJson(req);
