@@ -7,15 +7,17 @@ export class AiError extends Error {
   constructor(kind, detail = '') { super('ai_' + kind); this.kind = kind; this.detail = detail; } // kind: quota（額度用完）/ off / fail
 }
 
-async function callModel(env, model, prompt) {
+async function callModel(env, model, prompt, fast = true) {
   const body = JSON.stringify({
     contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    generationConfig: { temperature: 0.2, responseMimeType: 'application/json' },
+    // 分類、取標題這種小事不需要「先想一想」，關掉可以快好幾秒
+    generationConfig: { temperature: 0.2, responseMimeType: 'application/json', maxOutputTokens: 600, ...(fast ? { thinkingConfig: { thinkingBudget: 0 } } : {}) },
   });
   const path = `/v1beta/models/${model}:generateContent`;
+  const signal = AbortSignal.timeout ? AbortSignal.timeout(8000) : undefined;
   const res = env.GEMINI_PROXY
-    ? await env.GEMINI_PROXY.fetch('https://gemini' + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body })
-    : await fetch('https://generativelanguage.googleapis.com' + path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY || '' }, body });
+    ? await env.GEMINI_PROXY.fetch('https://gemini' + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, signal })
+    : await fetch('https://generativelanguage.googleapis.com' + path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY || '' }, body, signal });
   if (res.status === 429) throw new AiError('quota');
   if (!res.ok) throw new AiError('fail', String(res.status));
   const data = await res.json();
@@ -29,8 +31,14 @@ export async function askGemini(env, prompt) {
   if (env.AI_SIMULATE_QUOTA === '1') throw new AiError('quota'); // 測試「額度用完」用
   let quota = false, detail = 'no_model';
   for (const model of [env.GEMINI_MODEL, env.GEMINI_FALLBACK_MODEL].filter(Boolean)) {
-    try { return await callModel(env, model, prompt); }
-    catch (e) { if (e.kind === 'quota') quota = true; detail = e.detail || e.message; }
+    try {
+      try { return await callModel(env, model, prompt, true); }
+      catch (e) { if (e.kind === 'fail' && e.detail === '400') return await callModel(env, model, prompt, false); throw e; } // 不接受「不思考」設定就照一般方式
+    }
+    catch (e) {
+      if (e.kind === 'quota') quota = true;
+      detail = e.name === 'TimeoutError' || e.name === 'AbortError' ? 'timeout' : e.detail || e.message;
+    }
   }
   throw new AiError(quota ? 'quota' : 'fail', detail);
 }

@@ -20,6 +20,16 @@ function json(data, status, headers) {
   return new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...headers } });
 }
 
+// Notion 欄位設定暫存 5 分鐘（AI 建議時不用每次都重新問 Notion）
+const fieldCache = new Map();
+async function cachedFields(env, db) {
+  const hit = fieldCache.get(db);
+  if (hit && Date.now() - hit.at < 300000) return hit.fields;
+  const fields = describe(db, await getDataSource(env, env[DBS[db].env]));
+  fieldCache.set(db, { at: Date.now(), fields });
+  return fields;
+}
+
 // 記到公佈欄；就算記失敗也不影響已經存好的 Notion 資料
 async function remember(env, db, title, pageUrl) {
   try { await store(env).addSaved({ db, title, url: pageUrl }); } catch (e) { console.log('board', e.message); }
@@ -80,7 +90,7 @@ export default {
         const text = typeof body?.text === 'string' ? body.text.trim().slice(0, 3000) : '';
         if (!['projects', 'knowledge'].includes(db) || !text) return json({ error: '資料不完整' }, 400, h);
         try {
-          const fields = describe(db, await getDataSource(env, env[DBS[db].env]));
+          const fields = await cachedFields(env, db);
           return json({ ...(await aiSuggest(env, db, text, fields, Date.now(), { wantTitle: body.wantTitle === true })), ai: true }, 200, h);
         } catch (e) {
           if (e.kind) return json({ props: {}, notice: aiNotice(e) }, 200, h);
@@ -133,7 +143,7 @@ export default {
         const r = parseWhen(text);
         if (body.ai === false) return json({ title: r.title, at: r.at, props: {} }, 200, h);
         try {
-          const fields = describe('tasks', await getDataSource(env, env.TASKS_DS));
+          const fields = await cachedFields(env, 'tasks');
           const a = await aiTask(env, text, fields);
           // AI 沒聽出時間時，再參考規則版的結果
           return json({ title: a.title || r.title, at: a.at ?? r.at, props: a.props, ai: true }, 200, h);

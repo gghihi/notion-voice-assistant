@@ -21,3 +21,14 @@ test('專案建議：標題與分類', async () => {
   const r = await aiSuggest(reply({ title: '街訪企劃', 種類: ['企劃類', '不存在'], 專案領域關鍵字: [] }), 'projects', '想做街訪', [{ name: '種類', type: 'multi_select', options: ['企劃類'] }, { name: '專案領域關鍵字', type: 'multi_select', options: ['影片拍攝'] }]);
   assert.equal(r.title, '街訪企劃'); assert.deepEqual(r.props, { 種類: ['企劃類'] });
 });
+
+test('模型不接受「不思考」設定時，改用一般方式再試', async () => {
+  const seen = [];
+  const env = { GEMINI_MODEL: 'm1', GEMINI_PROXY: { fetch: async (u, init) => {
+    const fast = !!JSON.parse(init.body).generationConfig.thinkingConfig; seen.push(fast);
+    return fast ? new Response('{}', { status: 400 }) : new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: '{"ok":1}' }] } }] }));
+  } } };
+  const { askGemini } = await import('../src/ai.js');
+  assert.deepEqual(await askGemini(env, 'x'), { ok: 1 });
+  assert.deepEqual(seen, [true, false]);
+});
