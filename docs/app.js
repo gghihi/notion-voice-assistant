@@ -289,13 +289,38 @@ function linkList(holder) {
 }
 // ===== 圖片 =====
 let curTarget = null; // 目前正在寫的那一格（小重點或一般問題）
-function compressImage(file) { // 縮到最長 1600px、轉成 JPEG，上傳比較快
+// 找出截圖裡「真的有影片」的範圍：一列一列看，亮點多的才算畫面；取最長的一段（標題、進度條這種零星文字會被排除）
+function findVideoBox(img) {
+  const W = 200, H = Math.round(img.height * (W / img.width));
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(img, 0, 0, W, H);
+  const px = g.getImageData(0, 0, W, H).data;
+  const lit = (x, y) => { const i = (y * W + x) * 4; return px[i] * 0.3 + px[i + 1] * 0.59 + px[i + 2] * 0.11 > 28; };
+  const rowOn = []; for (let y = 0; y < H; y++) { let n = 0; for (let x = 0; x < W; x++) n += lit(x, y); rowOn.push(n / W > 0.45); }
+  let best = [0, -1], start = -1, gap = 0;
+  for (let y = 0; y <= H; y++) {
+    if (y < H && rowOn[y]) { if (start < 0) start = y; gap = 0; }
+    else if (start >= 0) {
+      if (y < H && ++gap <= 2) continue; // 允許很短的暗線
+      const end = y - gap; if (end - start > best[1] - best[0]) best = [start, end]; start = -1; gap = 0;
+    }
+  }
+  if (best[1] - best[0] < H * 0.15) return null; // 找不到明顯的影片區
+  let [top, bottom] = best;
+  const colOn = (x) => { let n = 0; for (let y = top; y <= bottom; y++) n += lit(x, y); return n / (bottom - top + 1) > 0.15; };
+  let left = 0, right = W - 1; while (left < right && !colOn(left)) left++; while (right > left && !colOn(right)) right--;
+  const k = img.width / W;
+  const box = { x: Math.floor(left * k), y: Math.floor(top * k), w: Math.ceil((right - left + 1) * k), h: Math.ceil((bottom - top + 1) * k) };
+  return box.w * box.h > img.width * img.height * 0.92 ? null : box; // 幾乎整張都是畫面就不用裁
+}
+function compressImage(file, crop = false) { // 縮到最長 1600px、轉成 JPEG，上傳比較快；crop＝自動裁掉黑邊和播放器介面
   return new Promise((resolve, reject) => {
     const img = new Image(); const url = URL.createObjectURL(file);
     img.onload = () => {
-      const k = Math.min(1, 1600 / Math.max(img.width, img.height));
-      const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
-      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+      const b = (crop && findVideoBox(img)) || { x: 0, y: 0, w: img.width, h: img.height };
+      const k = Math.min(1, 1600 / Math.max(b.w, b.h));
+      const c = document.createElement('canvas'); c.width = Math.round(b.w * k); c.height = Math.round(b.h * k);
+      c.getContext('2d').drawImage(img, b.x, b.y, b.w, b.h, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
       resolve(c.toDataURL('image/jpeg', 0.85));
     };
     img.onerror = () => reject(new Error('讀不到這張圖片'));
@@ -305,7 +330,7 @@ function compressImage(file) { // 縮到最長 1600px、轉成 JPEG，上傳比�
 async function addImageTo(holder, file, extra = {}) {
   if (!holder) return msg('先點一下要放圖片的那一格（小重點或一般問題）');
   try {
-    const data = await compressImage(file);
+    const data = await compressImage(file, !!extra.crop);
     (holder.images ||= []).push({ data, caption: extra.caption || '', link: extra.link || '' });
     saveDraft(); renderFields(currentSecVals()); msg('🖼️ 圖片放進去了');
   } catch (e) { msg(e.message); }
@@ -544,7 +569,10 @@ function fsControls() {
   let bar = $('notePlayer').querySelector('.fs-bar');
   if (!bar) {
     bar = document.createElement('div'); bar.className = 'fs-bar';
-    bar.append(smallBtn('✕', () => exitFs(), 'fs-btn'));
+    // 截完圖按 ✕：離開全螢幕並直接打開相簿選剛剛的截圖（按鈕本身算使用者操作，瀏覽器才肯開相簿）
+    const x = smallBtn('✕', () => { const t = Math.floor(ytTime); exitFs(); pickShotNow(t); }, 'fs-btn');
+    x.title = '離開並選截圖';
+    bar.append(x);
     bar.addEventListener('pointerdown', () => fsControls()); // 點一下又變清楚
     $('notePlayer').append(bar);
   }
@@ -570,13 +598,16 @@ function leaveFs() {
 document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement) leaveFs(); });
 $('fsBtn').onclick = enterFs;
 $('afterFsClose').onclick = () => { $('afterFs').hidden = true; };
-$('pickShot').onclick = () => {
+function pickShotNow(t) {
   const target = curTarget || fallbackTarget();
   if (!target) return msg('先按「＋ 重點」或「＋ 一般問題」，再放截圖');
-  const mm = Math.floor(fsTime / 60), ss = String(fsTime % 60).padStart(2, '0');
-  curTarget = target; pendingExtra = ytId ? { caption: `⏱️ ${mm}:${ss}`, link: `https://youtu.be/${ytId}?t=${fsTime}` } : {};
+  const mm = Math.floor(t / 60), ss = String(t % 60).padStart(2, '0');
+  const wide = !$('notePlayer').classList.contains('tall'); // 橫的影片才自動裁切
+  curTarget = target;
+  pendingExtra = { ...(ytId ? { caption: `⏱️ ${mm}:${ss}`, link: `https://youtu.be/${ytId}?t=${t}` } : {}), crop: wide };
   $('afterFs').hidden = true; $('imgPick').click();
-};
+}
+$('pickShot').onclick = () => pickShotNow(fsTime);
 
 function closeNote() { if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); $('notePlayer').classList.remove('fs'); $('noteSheet').hidden = true; $('noteBg').hidden = true; noteItem = null; $('notePlayer').innerHTML = ''; } // 關掉就停止播放
 // 影片網址 → 可以嵌入播放的網址（只接受這三個平台）
