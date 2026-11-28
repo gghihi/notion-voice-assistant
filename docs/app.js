@@ -188,7 +188,7 @@ async function openNote(it) {
   $('notePlayer').innerHTML = src ? `<iframe src="${src}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" title="影片"></iframe>` : '';
   if (video?.platform === 'IG' || video?.platform === 'Threads') $('notePlayer').classList.add('tall'); else $('notePlayer').classList.remove('tall');
   ytId = video?.platform === 'YouTube' ? video.id : null; ytTime = 0; curTarget = null;
-  $('snapRow').hidden = !src; $('afterFs').hidden = true; $('snapBtn').hidden = !ytId;
+  $('snapRow').hidden = !src; $('afterFs').hidden = true;
   const fr = $('notePlayer').querySelector('iframe'); if (fr) fr.addEventListener('load', () => { listenYouTube(); setTimeout(listenYouTube, 1500); });
   box.innerHTML = '';
   // 已經存進 Notion 的筆記先讀出來，可以直接修改（有沒存的草稿就先用草稿）
@@ -355,40 +355,6 @@ function fallbackTarget() {
   const qa = all.filter((x) => x.kind === 'qa');
   return qa.length ? qa[qa.length - 1] : null;
 }
-// 把預覽大圖裡的那一格切出來，放大一倍
-function cropFrame(f) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      const c = document.createElement('canvas'); c.width = f.w * 2; c.height = f.h * 2;
-      const g = c.getContext('2d'); g.imageSmoothingQuality = 'high';
-      g.drawImage(img, f.x, f.y, f.w, f.h, 0, 0, c.width, c.height);
-      resolve(c.toDataURL('image/jpeg', 0.9));
-    };
-    img.onerror = () => reject(new Error('畫面讀取失敗'));
-    img.src = f.dataUrl;
-  });
-}
-$('snapBtn').onclick = async () => {
-  const target = curTarget || fallbackTarget();
-  if (!target) return msg('先按「＋ 重點」或「＋ 一般問題」，再截圖');
-  const t = Math.floor(ytTime), mm = Math.floor(t / 60), ss = String(t % 60).padStart(2, '0');
-  const extra = ytId ? { caption: `⏱️ ${mm}:${ss}`, link: `https://youtu.be/${ytId}?t=${t}` } : {};
-  if (ytId) {
-    ytCommand('pauseVideo'); // 先暫停，畫面才不會跑掉
-    $('snapBtn').disabled = true; msg(`📸 擷取 ${mm}:${ss} 的畫面中…`);
-    try {
-      const f = await api(`/api/video/frame?id=${ytId}&t=${t}`);
-      const data = await cropFrame(f);
-      (target.images ||= []).push({ data, ...extra });
-      saveDraft(); renderFields(currentSecVals());
-      Sound.play('pop');
-      return msg(`📸 已把 ${mm}:${ss} 的畫面放進筆記`);
-    } catch (e) { msg('😢 ' + e.message + '\n可以改用「⛶ 全螢幕截圖模式」自己截圖'); return; }
-    finally { $('snapBtn').disabled = false; }
-  }
-  curTarget = target; pendingExtra = extra; $('imgPick').click();
-};
 
 function buildPreset(sec, kind) {
   const wrap = document.createElement('div'); wrap.className = 'note-sec preset';
@@ -578,9 +544,7 @@ function fsControls() {
   let bar = $('notePlayer').querySelector('.fs-bar');
   if (!bar) {
     bar = document.createElement('div'); bar.className = 'fs-bar';
-    const snap = smallBtn('📸', async () => { await exitFs(); $('snapBtn').click(); }, 'fs-btn');
-    snap.title = '擷取這一秒'; snap.hidden = !ytId;
-    bar.append(snap, smallBtn('✕', () => exitFs(), 'fs-btn'));
+    bar.append(smallBtn('✕', () => exitFs(), 'fs-btn'));
     bar.addEventListener('pointerdown', () => fsControls()); // 點一下又變清楚
     $('notePlayer').append(bar);
   }

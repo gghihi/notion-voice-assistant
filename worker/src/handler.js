@@ -4,7 +4,7 @@ import { checkDataSources, createNote, createTask, createPage, listTemplates, cr
 import { DBS, describe, toNotionProps, fromNotionProps } from './fields.js';
 import { STATUS_TO_NOTION } from './organize.js';
 import { readSection, saveSectionItems, savePlain, presetOf } from './notes.js';
-import { detect, fetchInfo, buildPage, CHANNEL, resolveShare, youtubeFrame } from './video.js';
+import { detect, fetchInfo, buildPage, CHANNEL, resolveShare } from './video.js';
 import { parseWhen, twIso } from './when.js';
 import { aiTask, aiSuggest, aiNotice, aiWriteNote, cleanNoteDraft } from './ai.js';
 
@@ -206,11 +206,6 @@ export default {
         const props = { ...STATUS_TO_NOTION[status] };
         try { await updatePageProps(env, pid, props); } catch (e) { if (e.status !== 400) throw e; delete props.Done; await updatePageProps(env, pid, props).catch(() => {}); }
         return json({ ok: true, status }, 200, h);
-      }
-      if (url.pathname === '/api/video/frame' && req.method === 'GET') {
-        // YouTube 某一秒的畫面（預覽縮圖）
-        const f = await youtubeFrame(url.searchParams.get('id') || '', Math.max(0, Number(url.searchParams.get('t')) || 0)).catch((e) => ({ error: e.message }));
-        return f.dataUrl ? json(f, 200, h) : json({ error: `抓不到這一秒的畫面：${f.error}` }, 404, h);
       }
       if (url.pathname === '/api/upload' && req.method === 'POST') {
         // 筆記裡的圖片：APP 先壓縮成 JPEG，這裡轉交給 Notion（最大 6MB）
