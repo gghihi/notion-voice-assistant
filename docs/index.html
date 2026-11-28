@@ -143,12 +143,12 @@
     <div class="player" id="notePlayer" hidden></div>
     <div class="ai-panel" id="aiPanel" hidden>
       <button type="button" class="big-mic" id="aiHintMic" aria-label="按一下用說的交代 AI">🎤</button>
-      <p class="hint center">按一下麥克風，說說想讓 AI 注意什麼（不說也可以），再按「開始撰寫」</p>
+      <p class="hint center">按麥克風用說的，或在下面打字，交代 AI 整份筆記要注意什麼（都不填也可以）</p>
       <p class="ai-said" id="aiSaid" hidden></p>
-      <textarea id="aiHint" hidden></textarea>
+      <textarea id="aiHint" rows="2" placeholder="例如：多寫實作步驟、用條列、重點放在工具怎麼用"></textarea>
       <button type="button" class="pill ai-go" id="aiGo">✨ 開始撰寫</button>
       <p class="ai-status" id="aiStatus"></p>
-      <div class="preview-head" id="voiceHead">🎙️ 單項語音（按麥克風，直接說進那一段）</div>
+      <div class="preview-head" id="voiceHead">✏️ 單段想法（打字或用說的，AI 會照這段的格式整理）</div>
       <div class="voice-list" id="voiceList"></div>
       <div class="preview-head">👀 目前筆記的樣子</div>
       <div class="note-preview" id="notePreview"></div>

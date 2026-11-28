@@ -119,6 +119,8 @@ ${optionsText(fields, cfg.allow)}`;
  * sections：[{ id, text, preset }]；回傳 { [段落id]: items 或 { text } }
  */
 export async function aiWriteNote(env, { title, video, caption, sections, hint }) {
+  // 使用者在 AI 模式對單一段落打的字／說的話
+  const said = sections.filter((s) => s.notes).map((s) => `段落「${s.text}」使用者的想法：「${String(s.notes).slice(0, 1500)}」`).join('\n');
   const spec = sections.map((s) => s.preset === 'point'
     ? `"${s.id}": 段落「${s.text}」→ 重點陣列 [{"title": 重點標題, "subs": [{"title": 小重點標題, "text": 內容（可多行）}]}]，3～6 個重點，每個 1～4 個小重點`
     : s.preset === 'qa'
@@ -126,8 +128,8 @@ export async function aiWriteNote(env, { title, video, caption, sections, hint }
       : `"${s.id}": 段落「${s.text}」→ {"text": 這一段要寫的內容（可多行）}`).join('\n');
   const prompt = `你是筆記整理助理，用繁體中文、白話、條理清楚地幫使用者把影片整理成筆記。
 影片標題：「${title || ''}」
-${caption ? `貼文內文：「${caption.slice(0, 2500)}」\n` : ''}${hint ? `使用者特別交代：「${String(hint).slice(0, 500)}」\n` : ''}
-請只根據影片（或內文）實際提到的內容來寫，沒提到的不要編。
+${caption ? `貼文內文：「${caption.slice(0, 2500)}」\n` : ''}${hint ? `使用者特別交代：「${String(hint).slice(0, 500)}」\n` : ''}${said ? said + '\n使用者有寫想法的段落，要以他的想法為主來整理（可以補充影片內容）。\n' : ''}
+請只根據影片（或內文）和使用者的想法來寫，沒提到的不要編。
 回傳 JSON，鍵是段落編號：
 ${spec}`;
   const parts = video?.platform === 'YouTube' ? [{ file_data: { file_uri: video.url, mime_type: 'video/*' } }] : [];

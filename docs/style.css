@@ -310,3 +310,9 @@ body[data-tab="org"] { --accent:var(--c-blue); --accent-soft:var(--c-blue-bg); }
 .voice-row { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:10px 12px; border:2px solid var(--ink); border-radius:12px; background:var(--paper); }
 .voice-row > div { display:grid; min-width:0; }
 .voice-snip { font-size:13px; color:var(--text-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.voice-row { display:grid; gap:6px; }
+.voice-row textarea { min-height:56px; box-shadow:none; font-size:15px; }
+#aiHint { box-shadow:none; min-height:60px; }
+.voice-row { display:grid !important; grid-template-columns:1fr; align-items:stretch; }
+.voice-row > .note-sec-head { display:flex !important; justify-content:space-between; align-items:center; }
+.voice-row textarea { width:100%; }

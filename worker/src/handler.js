@@ -128,8 +128,13 @@ export default {
         const [blocks, page] = await Promise.all([listChildren(env, pid), getPage(env, pid).catch(() => null)]);
         const link = page?.properties?.['相關連結']?.url;
         const video = link ? await resolveShare(detect(link)) : null;
-        const sections = outlineOf(blocks).map((s2) => ({ ...s2, preset: presetOf(s2) })).filter((s2) => !(/影片/.test(s2.text) && video));
+        const notes = body?.notes && typeof body.notes === 'object' ? body.notes : {};
+        const only = Array.isArray(body?.only) && body.only.length ? body.only : null;
+        let sections = outlineOf(blocks).map((s2) => ({ ...s2, preset: presetOf(s2) })).filter((s2) => !(/影片/.test(s2.text) && video));
         if (!sections.length) sections.push({ id: '_free', text: '筆記', preset: null });
+        sections = sections.map((s2) => ({ ...s2, notes: typeof notes[s2.id] === 'string' ? notes[s2.id].trim() : '' }));
+        if (only) sections = sections.filter((s2) => only.includes(s2.id)); // 只整理指定的段落
+        if (!sections.length) return json({ error: '找不到這一段' }, 400, h);
         let caption = null;
         if (video && video.platform !== 'YouTube') { try { caption = (await fetchInfo(video)).caption; } catch {} }
         try {
