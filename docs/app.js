@@ -188,7 +188,7 @@ async function openNote(it) {
   $('notePlayer').innerHTML = src ? `<iframe src="${src}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" title="影片"></iframe>` : '';
   if (video?.platform === 'IG' || video?.platform === 'Threads') $('notePlayer').classList.add('tall'); else $('notePlayer').classList.remove('tall');
   ytId = video?.platform === 'YouTube' ? video.id : null; ytTime = 0; curTarget = null;
-  $('snapBtn').hidden = !src;
+  $('snapRow').hidden = !src; $('afterFs').hidden = true; $('snapBtn').hidden = !ytId;
   const fr = $('notePlayer').querySelector('iframe'); if (fr) fr.addEventListener('load', () => { listenYouTube(); setTimeout(listenYouTube, 1500); });
   box.innerHTML = '';
   // 已經存進 Notion 的筆記先讀出來，可以直接修改（有沒存的草稿就先用草稿）
@@ -568,7 +568,49 @@ async function runAi(only) {
   finally { clearInterval(timer); $('aiGo').disabled = false; }
 }
 
-function closeNote() { $('noteSheet').hidden = true; $('noteBg').hidden = true; noteItem = null; $('notePlayer').innerHTML = ''; } // 關掉就停止播放
+// ===== 全螢幕截圖模式：影片放滿整個螢幕（直的、橫的都可以），讓你用手機自己截圖 =====
+let fsTime = 0;
+function fsControls() {
+  let bar = $('notePlayer').querySelector('.fs-bar');
+  if (!bar) {
+    bar = document.createElement('div'); bar.className = 'fs-bar';
+    const snap = smallBtn('📸', async () => { await exitFs(); $('snapBtn').click(); }, 'fs-btn');
+    snap.title = '擷取這一秒'; snap.hidden = !ytId;
+    bar.append(snap, smallBtn('✕', () => exitFs(), 'fs-btn'));
+    bar.addEventListener('pointerdown', () => fsControls()); // 點一下又變清楚
+    $('notePlayer').append(bar);
+  }
+  bar.classList.remove('dim'); clearTimeout(bar._t); bar._t = setTimeout(() => bar.classList.add('dim'), 2500); // 幾秒後變淡，截圖比較乾淨
+}
+async function enterFs() {
+  const el = $('notePlayer');
+  el.classList.add('fs'); fsControls();
+  try { await el.requestFullscreen?.({ navigationUI: 'hide' }); } catch {}
+  msg('');
+}
+async function exitFs() {
+  if (document.fullscreenElement) { try { await document.exitFullscreen(); } catch {} }
+  leaveFs();
+}
+function leaveFs() {
+  const el = $('notePlayer');
+  if (!el.classList.contains('fs')) return;
+  el.classList.remove('fs');
+  fsTime = Math.floor(ytTime);
+  $('afterFs').hidden = false; // 出來後問要不要放剛剛的截圖
+}
+document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement) leaveFs(); });
+$('fsBtn').onclick = enterFs;
+$('afterFsClose').onclick = () => { $('afterFs').hidden = true; };
+$('pickShot').onclick = () => {
+  const target = curTarget || fallbackTarget();
+  if (!target) return msg('先按「＋ 重點」或「＋ 一般問題」，再放截圖');
+  const mm = Math.floor(fsTime / 60), ss = String(fsTime % 60).padStart(2, '0');
+  curTarget = target; pendingExtra = ytId ? { caption: `⏱️ ${mm}:${ss}`, link: `https://youtu.be/${ytId}?t=${fsTime}` } : {};
+  $('afterFs').hidden = true; $('imgPick').click();
+};
+
+function closeNote() { if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); $('notePlayer').classList.remove('fs'); $('noteSheet').hidden = true; $('noteBg').hidden = true; noteItem = null; $('notePlayer').innerHTML = ''; } // 關掉就停止播放
 // 影片網址 → 可以嵌入播放的網址（只接受這三個平台）
 function embedSrc(v) {
   if (!v || !v.id || !/^[\w-]+$/.test(v.id)) return null;
