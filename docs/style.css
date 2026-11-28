@@ -254,3 +254,14 @@ body[data-tab="org"] { --accent:var(--c-blue); --accent-soft:var(--c-blue-bg); }
 :root[data-theme="dark"] .code-box { background:#262626 !important; }
 .code-lang { width:auto; justify-self:start; padding:4px 8px; font-size:12px; }
 .add-btn.tiny { font-size:12px; padding:3px 10px; }
+
+/* 寫筆記：全螢幕（標題列和存檔按鈕固定，中間可以捲） */
+#noteSheet { inset:0; left:0; transform:none; width:100%; max-width:none; max-height:none; height:100dvh; border:0; border-radius:0;
+  display:flex; flex-direction:column; padding:0; overflow:hidden; animation:upFull .28s cubic-bezier(.2,.9,.3,1.1); }
+@keyframes upFull { from { transform:translateY(100%); } }
+#noteSheet .sheet-head { flex:none; margin:0; padding:calc(10px + env(safe-area-inset-top)) 16px 10px; border-bottom:2px solid var(--ink); background:var(--paper); }
+#noteSheet .note-body { flex:1; overflow:auto; padding:12px 16px 16px; -webkit-overflow-scrolling:touch; }
+#noteSheet .note-actions { flex:none; margin:0; padding:10px 16px calc(10px + env(safe-area-inset-bottom)); border-top:2px solid var(--ink); background:var(--paper); grid-template-columns:1fr 1fr; }
+#noteSheet .note-actions .pill { font-size:14px; padding:10px 8px; }
+#noteSheet .player { top:-12px; margin:0 0 12px; }
+@media (min-width:700px) { #noteSheet .note-body { max-width:760px; margin:0 auto; width:100%; } }

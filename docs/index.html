@@ -134,6 +134,7 @@
   <div class="sheet-bg" id="noteBg" hidden></div>
   <section class="sheet" id="noteSheet" hidden aria-label="寫筆記">
     <div class="sheet-head"><h2>📝 寫筆記</h2><button class="x" id="noteClose" type="button" aria-label="收起">✕</button></div>
+    <div class="note-body">
     <a class="note-for" id="noteFor" href="#" target="_blank" rel="noopener"></a>
     <div class="player" id="notePlayer" hidden></div>
     <div id="noteFields" class="note-fields"></div>
@@ -143,9 +144,10 @@
       <button class="ghost mic" data-for="noteText" type="button" id="noteMic">🎤 說話</button>
       <span class="note-count" id="noteCount">0 字</span>
     </div>
+    </div>
     <div class="note-actions">
-      <button class="pill danger" id="noteSave" type="button">存進 Notion（整理中）</button>
-      <button class="pill" id="noteSaveDone" type="button">存進 Notion 並完成 ✅</button>
+      <button class="pill danger" id="noteSave" type="button">存起來（整理中）</button>
+      <button class="pill" id="noteSaveDone" type="button">存起來並完成 ✅</button>
     </div>
   </section>
   <div class="sheet-bg" id="delBg" hidden></div>
