@@ -26,7 +26,7 @@ export function detect(raw) {
 }
 
 const UA = { 'User-Agent': 'Mozilla/5.0 (compatible; notion-voice-assistant)', 'Accept-Language': 'zh-TW,zh;q=0.9' };
-const decode = (s) => s && s.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+const decode = (s) => s && s.replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16))).replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d))).replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>');
 const meta = (html, prop) => decode((html.match(new RegExp(`<meta[^>]+(?:property|name|itemprop)=["']${prop}["'][^>]+content=["']([^"']*)`, 'i')) || [])[1] || null);
 
 async function getText(url, fetchImpl) {
@@ -78,6 +78,16 @@ export async function fetchInfo(v, fetchImpl = fetch) {
         const user = html.match(/class="UsernameText"[^>]*>([^<]+)</);
         if (user && !info.author) info.author = decode(user[1]).trim();
         if (!info.thumbnail) { const img = html.match(/class="EmbeddedMediaImage"[^>]+src="([^"]+)"/); if (img) info.thumbnail = decode(img[1]); }
+      } catch {}
+    }
+    // 作者：IG 帳號（@名稱）之外，再去他的主頁抓「顯示名稱」（例如 be.ai.curator → AI 主理人）
+    info.handle = info.author && /^[\w.]+$/.test(info.author) ? info.author : null;
+    if (info.handle) {
+      try {
+        const html = await getText(`https://www.instagram.com/${info.handle}/`, fetchImpl);
+        const t = meta(html, 'og:title') || (html.match(/<title>([^<]+)<\/title>/) || [])[1] || '';
+        const name = decode(t).match(/^(.+?)\s*[(（]@/);
+        if (name && name[1].trim() && name[1].trim() !== info.handle) info.displayName = name[1].trim().slice(0, 100);
       } catch {}
     }
     if (info.caption) info.caption = info.caption.replace(/\s+\n/g, '\n').slice(0, 1500);

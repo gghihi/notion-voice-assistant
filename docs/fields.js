@@ -4,6 +4,7 @@ window.FieldPanel = function FieldPanel(db, box, baseDefaults = {}) {
   let defaults = { ...baseDefaults };
   const values = {};
   const setters = {};
+  const optionLists = {};
   const el = (tag, attrs = {}, ...kids) => { const e = document.createElement(tag); Object.assign(e, attrs); e.append(...kids); return e; };
 
   function chips(name, wrap, getLabel = (v) => v) {
@@ -16,6 +17,7 @@ window.FieldPanel = function FieldPanel(db, box, baseDefaults = {}) {
   }
 
   function build(f) {
+    if (f.options) optionLists[f.name] = f.options;
     const label = el('label', {}, f.name);
     if (f.type === 'select') {
       const s = el('select');
@@ -93,6 +95,7 @@ window.FieldPanel = function FieldPanel(db, box, baseDefaults = {}) {
   return {
     ready,
     set(name, v) { setters[name]?.(v); },
+    options(name) { return optionLists[name] || []; },
     // 套用範本的預設值（範本有填的蓋過 APP 預設），然後重設畫面
     async useTemplate(tplValues) { await ready; defaults = tplValues ? { ...tplValues } : { ...baseDefaults }; this.reset(); },
     reset() { for (const k of Object.keys(setters)) setters[k](defaults[k]); },

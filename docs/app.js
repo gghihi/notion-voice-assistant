@@ -357,11 +357,14 @@ $('videoPreviewBtn').onclick = async () => {
     $('videoTitle').value = r.title || '';
     $('videoThumb').hidden = !r.thumbnail;
     if (r.thumbnail) $('videoThumb').src = r.thumbnail;
-    $('videoMeta').textContent = [r.platform, r.author && '頻道：' + r.author, r.uploadDate && '上傳：' + r.uploadDate].filter(Boolean).join('　') + (r.caption ? '\n📝 ' + r.caption.slice(0, 80) + (r.caption.length > 80 ? '…' : '') : '');
+    $('videoMeta').textContent = [r.platform, (r.displayName || r.author) && '作者：' + (r.displayName ? r.displayName + '（@' + r.handle + '）' : r.author), r.uploadDate && '上傳：' + r.uploadDate].filter(Boolean).join('　') + (r.caption ? '\n📝 ' + r.caption.slice(0, 80) + (r.caption.length > 80 ? '…' : '') : '');
     $('videoForm').hidden = false;
     const kp = panel('knowledge'); await kp.ready; kp.reset();
     // 抓到的影片資料蓋過範本預設；抓不到就保留範本的值
-    if (r.author) kp.set('作者', [r.author.replace(/,/g, ' ')]);
+    // 作者：已經在作者標籤裡的（帳號或顯示名稱）就直接選；新的人用他主頁的顯示名稱
+    const known = kp.options('作者');
+    const author = [r.handle, r.displayName, r.author].find((x) => x && known.includes(x)) || r.displayName || r.author;
+    if (author) kp.set('作者', [author.replace(/,/g, ' ')]);
     if (r.uploadDate) kp.set('上傳日期', r.uploadDate);
     kp.set('課堂筆記通路', r.platform === 'IG' ? 'IG' : 'YouTube');
     kp.set('相關連結', r.url);
