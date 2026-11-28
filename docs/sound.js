@@ -113,6 +113,13 @@ window.Sound = (() => {
     if (bus) { bus.disconnect(); bus = null; }
   }
 
+  // 離開 APP（切到別的 APP、回主畫面、關螢幕）就暫停所有聲音，回來再繼續
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { stopBgm(); if (ctx && ctx.state === 'running') ctx.suspend(); }
+    else if (state.bgm) startBgm();
+  });
+  window.addEventListener('pagehide', () => { stopBgm(); if (ctx) ctx.suspend(); });
+
   // 瀏覽器規定要使用者先點一下才能出聲：第一次點擊時才啟動配樂
   document.addEventListener('pointerdown', () => { if (state.bgm) startBgm(); }, { once: true });
 
