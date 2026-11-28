@@ -188,7 +188,7 @@ async function openNote(it) {
   $('notePlayer').innerHTML = src ? `<iframe src="${src}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" title="影片"></iframe>` : '';
   if (video?.platform === 'IG' || video?.platform === 'Threads') $('notePlayer').classList.add('tall'); else $('notePlayer').classList.remove('tall');
   ytId = video?.platform === 'YouTube' ? video.id : null; ytTime = 0; curTarget = null;
-  $('snapRow').hidden = !src; $('afterFs').hidden = true;
+  $('snapRow').hidden = !src;
   const fr = $('notePlayer').querySelector('iframe'); if (fr) fr.addEventListener('load', () => { listenYouTube(); setTimeout(listenYouTube, 1500); });
   box.innerHTML = '';
   // 已經存進 Notion 的筆記先讀出來，可以直接修改（有沒存的草稿就先用草稿）
@@ -342,8 +342,17 @@ function imageList(holder) {
   holder.images.forEach((im, k) => {
     const fig = document.createElement('figure'); fig.className = 'img-item';
     const pic = document.createElement('img'); pic.src = im.data || ''; pic.alt = '';
+    fig.append(pic);
+    if (im.link) { // 影片時間點：像 YouTube「從這個時間點分享」的連結
+      const t = Number((im.link.match(/[?&]t=(\d+)/) || [])[1] || 0);
+      const a = document.createElement('a'); a.className = 'time-link'; a.href = im.link; a.target = '_blank'; a.rel = 'noopener';
+      a.textContent = `▶ ${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}　${im.link}`;
+      a.onclick = (e) => { if (ytId) { e.preventDefault(); ytCommandArgs('seekTo', [t, true]); ytCommand('playVideo'); } }; // 在上面的播放器直接跳過去
+      fig.append(a);
+      im.caption = im.caption && !/^⏱️ \d+:\d\d$/.test(im.caption) ? im.caption : '';
+    }
     const cap = field('input', '圖片說明（可空白）', im.caption, (v) => { im.caption = v; });
-    fig.append(pic, cap, smallBtn('✕', () => { holder.images.splice(k, 1); saveDraft(); renderFields(currentSecVals()); }, 'del-mini'));
+    fig.append(cap, smallBtn('✕', () => { holder.images.splice(k, 1); saveDraft(); renderFields(currentSecVals()); }, 'del-mini'));
     box.append(fig);
   });
   box.append(smallBtn('＋ 圖片', () => { curTarget = holder; pendingExtra = {}; $('imgPick').click(); }, 'add-btn tiny'));
@@ -365,6 +374,9 @@ window.addEventListener('message', (e) => {
   if (!/youtube(-nocookie)?\.com$/.test(new URL(e.origin).hostname)) return;
   try { const d = typeof e.data === 'string' ? JSON.parse(e.data) : e.data; if (d?.info && typeof d.info.currentTime === 'number') ytTime = d.info.currentTime; } catch {}
 });
+function ytCommandArgs(func, args) {
+  $('notePlayer').querySelector('iframe')?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func, args }), '*');
+}
 function ytCommand(func) { // 叫 YouTube 播放器暫停／播放
   $('notePlayer').querySelector('iframe')?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func, args: [] }), '*');
 }
@@ -593,21 +605,17 @@ function leaveFs() {
   if (!el.classList.contains('fs')) return;
   el.classList.remove('fs');
   fsTime = Math.floor(ytTime);
-  $('afterFs').hidden = false; // 出來後問要不要放剛剛的截圖
 }
 document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement) leaveFs(); });
 $('fsBtn').onclick = enterFs;
-$('afterFsClose').onclick = () => { $('afterFs').hidden = true; };
 function pickShotNow(t) {
   const target = curTarget || fallbackTarget();
   if (!target) return msg('先按「＋ 重點」或「＋ 一般問題」，再放截圖');
-  const mm = Math.floor(t / 60), ss = String(t % 60).padStart(2, '0');
   const wide = !$('notePlayer').classList.contains('tall'); // 橫的影片才自動裁切
   curTarget = target;
-  pendingExtra = { ...(ytId ? { caption: `⏱️ ${mm}:${ss}`, link: `https://youtu.be/${ytId}?t=${t}` } : {}), crop: wide };
-  $('afterFs').hidden = true; $('imgPick').click();
+  pendingExtra = { ...(ytId ? { link: `https://youtu.be/${ytId}?t=${t}` } : {}), crop: wide };
+  $('imgPick').click();
 }
-$('pickShot').onclick = () => pickShotNow(fsTime);
 
 function closeNote() { if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); $('notePlayer').classList.remove('fs'); $('noteSheet').hidden = true; $('noteBg').hidden = true; noteItem = null; $('notePlayer').innerHTML = ''; } // 關掉就停止播放
 // 影片網址 → 可以嵌入播放的網址（只接受這三個平台）

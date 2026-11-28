@@ -226,10 +226,17 @@ const bookmarks = (links) => (Array.isArray(links) ? links : []).filter((u) => t
   .slice(0, 10).map((u) => ({ object: 'block', type: 'bookmark', bookmark: { url: u.trim() } }));
 // 圖片（已上傳到 Notion 的 file_upload 編號）
 const UUID = /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i;
-const images = (list) => (Array.isArray(list) ? list : []).filter((im) => im && UUID.test(im.uploadId || '')).slice(0, 10).map((im) => ({
-  object: 'block', type: 'image',
-  image: { type: 'file_upload', file_upload: { id: im.uploadId }, caption: im.caption ? [{ type: 'text', text: { content: String(im.caption).slice(0, 300), ...(typeof im.link === 'string' && /^https:\/\/(www\.)?(youtube\.com|youtu\.be)\//.test(im.link) ? { link: { url: im.link } } : {}) } }] : [] },
-}));
+const YT_LINK = /^https:\/\/(www\.)?(youtube\.com|youtu\.be)\/[^\s]*$/;
+const images = (list) => (Array.isArray(list) ? list : []).filter((im) => im && UUID.test(im.uploadId || '')).slice(0, 10).map((im) => {
+  // 說明：影片時間點連結（像 YouTube「從這個時間點分享」）＋ 自己寫的說明
+  const cap = [];
+  if (typeof im.link === 'string' && YT_LINK.test(im.link)) {
+    const t = Number((im.link.match(/[?&]t=(\d+)/) || [])[1] || 0);
+    cap.push({ type: 'text', text: { content: `▶ ${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`, link: { url: im.link } } });
+  }
+  if (im.caption) cap.push({ type: 'text', text: { content: (cap.length ? '　' : '') + String(im.caption).slice(0, 300) } });
+  return { object: 'block', type: 'image', image: { type: 'file_upload', file_upload: { id: im.uploadId }, caption: cap } };
+});
 const rt = (s) => (s ? [{ type: 'text', text: { content: String(s).slice(0, 2000) } }] : []);
 /** APP 裡用「＋ 重點／＋ 副重點／＋ 一般問題」做的結構 → Notion 區塊（和範本按鈕插入的格式一樣） */
 export function itemBlocks(items) {

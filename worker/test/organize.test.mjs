@@ -75,9 +75,11 @@ test('網址書籤', () => {
 });
 
 test('筆記圖片：只接受上傳編號，附說明', () => {
-  const b = itemBlocks([{ kind: 'qa', q: '這是什麼畫面？', images: [{ uploadId: '12345678-1234-1234-1234-123456789abc', caption: '⏱️ 3:25' }, { uploadId: 'bad' }] }]);
+  const b = itemBlocks([{ kind: 'qa', q: '這是什麼畫面？', images: [{ uploadId: '12345678-1234-1234-1234-123456789abc', caption: '重點畫面', link: 'https://youtu.be/abcdefghijk?t=908' }, { uploadId: 'bad' }] }]);
   const img = b[0].toggle.children.filter((x) => x.type === 'image');
   assert.equal(img.length, 1);
   assert.equal(img[0].image.file_upload.id, '12345678-1234-1234-1234-123456789abc');
-  assert.equal(img[0].image.caption[0].text.content, '⏱️ 3:25');
+  assert.equal(img[0].image.caption[0].text.content, '▶ 15:08');
+  assert.equal(img[0].image.caption[0].text.link.url, 'https://youtu.be/abcdefghijk?t=908');
+  assert.equal(img[0].image.caption[1].text.content, '　重點畫面');
 });
