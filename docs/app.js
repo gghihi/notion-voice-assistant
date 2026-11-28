@@ -297,7 +297,7 @@ function findVideoBox(img) {
   const px = g.getImageData(0, 0, W, H).data;
   const lit = (x, y) => { const i = (y * W + x) * 4; return px[i] * 0.3 + px[i + 1] * 0.59 + px[i + 2] * 0.11 > 28; };
   const rowOn = []; for (let y = 0; y < H; y++) { let n = 0; for (let x = 0; x < W; x++) n += lit(x, y); rowOn.push(n / W > 0.45); }
-  let best = [0, -1], start = -1, gap = 0;
+  let best = [0, -1], start = -1, gap = 0, dark = false;
   for (let y = 0; y <= H; y++) {
     if (y < H && rowOn[y]) { if (start < 0) start = y; gap = 0; }
     else if (start >= 0) {
@@ -305,9 +305,21 @@ function findVideoBox(img) {
       const end = y - gap; if (end - start > best[1] - best[0]) best = [start, end]; start = -1; gap = 0;
     }
   }
-  if (best[1] - best[0] < H * 0.15) return null; // 找不到明顯的影片區
+  if (best[1] - best[0] < H * 0.15) {
+    // 備用：影片畫面很暗時，改找「不是純黑」而且高度接近 16:9 的那一段（黑邊通常是純黑，暗畫面多少有雜訊）
+    const notBlack = (x, y) => { const i = (y * W + x) * 4; return px[i] + px[i + 1] + px[i + 2] > 18; };
+    const rowAny = []; for (let y = 0; y < H; y++) { let n = 0; for (let x = 0; x < W; x++) n += notBlack(x, y); rowAny.push(n / W > 0.5); }
+    const want = W * 9 / 16; let pick = null; start = -1;
+    for (let y = 0; y <= H; y++) {
+      if (y < H && rowAny[y]) { if (start < 0) start = y; }
+      else if (start >= 0) { const hgt = y - start; if (Math.abs(hgt - want) < want * 0.2 && (!pick || Math.abs(hgt - want) < Math.abs(pick[1] - pick[0] - want))) pick = [start, y - 1]; start = -1; }
+    }
+    if (!pick) return null;
+    best = pick; dark = true;
+  }
   let [top, bottom] = best;
-  const colOn = (x) => { let n = 0; for (let y = top; y <= bottom; y++) n += lit(x, y); return n / (bottom - top + 1) > 0.15; };
+  const test = dark ? (x, y) => { const i = (y * W + x) * 4; return px[i] + px[i + 1] + px[i + 2] > 18; } : lit;
+  const colOn = (x) => { let n = 0; for (let y = top; y <= bottom; y++) n += test(x, y); return n / (bottom - top + 1) > (dark ? 0.5 : 0.15); };
   let left = 0, right = W - 1; while (left < right && !colOn(left)) left++; while (right > left && !colOn(right)) right--;
   const k = img.width / W;
   const box = { x: Math.floor(left * k), y: Math.floor(top * k), w: Math.ceil((right - left + 1) * k), h: Math.ceil((bottom - top + 1) * k) };
