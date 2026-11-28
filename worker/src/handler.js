@@ -1,6 +1,6 @@
 // 後端入口：只開放少數幾個網址，每個（除了登入）都要有效通行證。
 import { checkPassword, issueToken, verifyToken } from './auth.js';
-import { checkDataSources, createNote, createTask, createPage, listTemplates, createPageWithTemplate, getDataSource, searchPages, getPage, pageTitle, pageIdFromUrl, trashPage, updatePageProps, appendBlocks, paragraphs, listChildren, insertAfter, outlineOf, sectionEnd } from './notion.js';
+import { checkDataSources, createNote, createTask, createPage, listTemplates, createPageWithTemplate, getDataSource, searchPages, getPage, pageTitle, pageIdFromUrl, trashPage, updatePageProps, appendBlocks, paragraphs, listChildren, insertAfter, outlineOf, sectionEnd, sectionAnchor, itemBlocks } from './notion.js';
 import { DBS, describe, toNotionProps, fromNotionProps } from './fields.js';
 import { STATUS_TO_NOTION } from './organize.js';
 import { detect, fetchInfo, buildPage, CHANNEL, resolveShare } from './video.js';
@@ -116,17 +116,26 @@ export default {
         const text = typeof body?.text === 'string' ? body.text.trim() : '';
         const sections = body?.sections && typeof body.sections === 'object' ? Object.entries(body.sections)
           .map(([k, v]) => [k, typeof v === 'string' ? v.trim() : '']).filter(([, v]) => v) : [];
-        const total = text.length + sections.reduce((n, [, v]) => n + v.length, 0);
+        const items = body?.items && typeof body.items === 'object' ? Object.entries(body.items).map(([k, v]) => [k, itemBlocks(v)]).filter(([, v]) => v.length) : [];
+        const total = text.length + sections.reduce((n, [, v]) => n + v.length, 0) + JSON.stringify(body?.items || {}).length / 4;
         if (!total) return json({ error: '筆記是空的' }, 400, h);
+        if (!text && !sections.length && !items.length) return json({ error: '筆記是空的' }, 400, h);
         if (total > MAX_TEXT) return json({ error: '筆記太長（上限 5000 字）' }, 400, h);
         // 只能寫進「整理庫裡有的」頁面
         const item = await store(env).getOrganize(body.id);
         const pid = item && pageIdFromUrl(item.url);
         if (!pid) return json({ error: '找不到這筆，可能已經超過 7 天' }, 404, h);
         // 照範本格式：寫進各自的段落（收合的放進裡面；一般標題插在該段最後面）
-        if (sections.length) {
+        if (sections.length || items.length) {
           const blocks = await listChildren(env, pid);
           const outline = outlineOf(blocks);
+          // 結構化的「重點／一般問題」：照範本按鈕的做法，放在按鈕上方
+          for (const [sid, kids] of items) {
+            const sec = outline.find((o) => o.id === sid);
+            if (!sec) continue;
+            if (sec.toggle) await appendBlocks(env, sid, kids);
+            else await insertAfter(env, pid, sectionAnchor(blocks, sid), kids);
+          }
           for (const [sid, v] of sections) {
             const sec = outline.find((o) => o.id === sid);
             if (!sec) continue; // 不是這一頁的區塊就跳過

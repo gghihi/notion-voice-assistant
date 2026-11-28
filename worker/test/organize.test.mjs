@@ -38,3 +38,30 @@ test('範本格式：找段落標題與段落結尾', () => {
   assert.equal(sectionEnd(blocks, 'h1'), 'p2');
   assert.equal(sectionEnd(blocks, 'nope'), null);
 });
+
+import { sectionAnchor, itemBlocks } from '../src/notion.js';
+test('按鈕上方的位置與結構化筆記', () => {
+  const blocks = [
+    { id: 'h', type: 'heading_1', heading_1: { rich_text: [{ plain_text: '課程大綱' }] } },
+    { id: 'p', type: 'paragraph', paragraph: { rich_text: [] } },
+    { id: 'btn', type: 'unsupported' },
+    { id: 'h2', type: 'heading_1', heading_1: { rich_text: [{ plain_text: '重點回顧' }] } },
+    { id: 'btn2', type: 'unsupported' },
+  ];
+  assert.equal(sectionAnchor(blocks, 'h'), 'p');
+  assert.equal(sectionAnchor(blocks, 'h2'), 'h2');
+  const b = itemBlocks([{ kind: 'point', title: 'AI 操作桌面', subs: [{ title: '工具', text: 'Claude' }, { title: '', text: '' }] }, { kind: 'qa', q: '', a: '答案' }, { kind: 'x' }]);
+  assert.equal(b.length, 2);
+  assert.equal(b[0].heading_2.is_toggleable, true);
+  assert.equal(b[0].heading_2.children.length, 1);
+  assert.equal(b[0].heading_2.children[0].heading_3.children[0].paragraph.rich_text[0].text.content, 'Claude');
+  assert.equal(b[1].toggle.rich_text[0].text.content, '?');
+});
+
+test('程式筆記：小重點裡的程式碼框', () => {
+  const b = itemBlocks([{ kind: 'point', title: '提示詞', subs: [{ title: '角色設定', code: '<role>助理</role>' }, { title: 'x', code: 'print(1)', lang: 'evil' }] }]);
+  const kids = b[0].heading_2.children;
+  assert.equal(kids[0].heading_3.children[0].code.language, 'xml');
+  assert.equal(kids[0].heading_3.children[0].code.rich_text[0].text.content, '<role>助理</role>');
+  assert.equal(kids[1].heading_3.children[0].code.language, 'xml');
+});

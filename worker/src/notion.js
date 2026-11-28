@@ -169,11 +169,19 @@ const plain = (rt) => (rt || []).map((t) => t.plain_text || t.text?.content || '
 /** 從頁面區塊找出「段落標題」：標題（含可收合標題）和收合清單。回傳 [{ id, text, toggle, kind }] */
 export function outlineOf(blocks) {
   const out = [];
-  for (const b of blocks) {
+  for (const [i, b] of blocks.entries()) {
     const t = b.type;
     if (/^heading_[123]$/.test(t)) {
       const text = plain(b[t].rich_text);
-      if (text) out.push({ id: b.id, text, toggle: !!b[t].is_toggleable, kind: t });
+      if (text) {
+        // 這一段裡有沒有 Notion 按鈕（API 看到的是 unsupported）
+        const level = Number(t.slice(-1)); let hasButton = false;
+        for (let j = i + 1; j < blocks.length; j++) {
+          const m = blocks[j].type.match(/^heading_(\d)$/); if (m && Number(m[1]) <= level) break;
+          if (blocks[j].type === 'unsupported' || blocks[j].type === 'button') { hasButton = true; break; }
+        }
+        out.push({ id: b.id, text, toggle: !!b[t].is_toggleable, kind: t, hasButton });
+      }
     } else if (t === 'toggle') {
       const text = plain(b.toggle.rich_text);
       if (text) out.push({ id: b.id, text, toggle: true, kind: t });
@@ -194,4 +202,43 @@ export function sectionEnd(blocks, headingId) {
     last = blocks[j].id;
   }
   return last;
+}
+
+/** 段落裡「按鈕上方」的位置：Notion 按鈕在 API 裡是 unsupported 區塊；插在它前一個區塊後面。沒有按鈕就插在段落最後 */
+export function sectionAnchor(blocks, headingId) {
+  const i = blocks.findIndex((b) => b.id === headingId);
+  if (i < 0) return null;
+  const level = Number((blocks[i].type.match(/heading_(\d)/) || [])[1] || 9);
+  let prev = blocks[i].id;
+  for (let j = i + 1; j < blocks.length; j++) {
+    const b = blocks[j];
+    const m = b.type.match(/^heading_(\d)$/);
+    if (m && Number(m[1]) <= level) break;
+    if (b.type === 'unsupported' || b.type === 'button') return prev; // 按鈕上方
+    prev = b.id;
+  }
+  return prev;
+}
+
+export const CODE_LANGS = ['xml', 'plain text', 'javascript', 'python', 'html', 'css', 'json', 'markdown', 'bash', 'sql'];
+const rt = (s) => (s ? [{ type: 'text', text: { content: String(s).slice(0, 2000) } }] : []);
+/** APP 裡用「＋ 重點／＋ 副重點／＋ 一般問題」做的結構 → Notion 區塊（和範本按鈕插入的格式一樣） */
+export function itemBlocks(items) {
+  const out = [];
+  for (const it of (Array.isArray(items) ? items : []).slice(0, 30)) {
+    if (it?.kind === 'point') {
+      const subs = (Array.isArray(it.subs) ? it.subs : []).slice(0, 20).filter((s) => s && (s.title || s.text || s.code)).map((s) => {
+        const kids = paragraphs(s.text || '').filter((p) => p.paragraph.rich_text.length).slice(0, 49);
+        // 程式筆記範本的「提示詞按鈕」：小標題裡放一個程式碼框
+        if (s.code) kids.push({ object: 'block', type: 'code', code: { language: CODE_LANGS.includes(s.lang) ? s.lang : 'xml', rich_text: rt(s.code) } });
+        return { object: 'block', type: 'heading_3', heading_3: { rich_text: rt(s.title || '副重點'), is_toggleable: true, children: kids } };
+      });
+      if (!it.title && !subs.length) continue;
+      out.push({ object: 'block', type: 'heading_2', heading_2: { rich_text: rt(it.title || '重點'), is_toggleable: true, children: subs } });
+    } else if (it?.kind === 'qa') {
+      if (!it.q && !it.a) continue;
+      out.push({ object: 'block', type: 'toggle', toggle: { rich_text: rt(it.q || '?'), children: paragraphs(it.a || '').filter((p) => p.paragraph.rich_text.length).slice(0, 50) } });
+    }
+  }
+  return out;
 }

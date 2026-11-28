@@ -237,3 +237,20 @@ body[data-tab="org"] { --accent:var(--c-blue); --accent-soft:var(--c-blue-bg); }
 .player { position:sticky; top:-18px; z-index:2; margin:0 -4px 12px; border:2.5px solid var(--ink); border-radius:14px; overflow:hidden; background:#000; box-shadow:var(--shadow-sm); aspect-ratio:16/9; }
 .player.tall { aspect-ratio:auto; height:min(55vh, 520px); background:#fff; }
 .player iframe { width:100%; height:100%; border:0; display:block; }
+/* 重點／一般問題 */
+.preset-list { display:grid; gap:10px; }
+.preset-card { position:relative; display:grid; gap:6px; padding:12px 12px 10px; border:2px solid var(--ink); border-radius:12px; background:var(--yellow-soft); }
+.preset-card.qa { background:var(--c-blue-bg); }
+.preset-card input, .preset-card textarea { box-shadow:none; font-size:15px; padding:8px 10px; }
+.preset-card textarea { min-height:56px !important; }
+.point-title { font-weight:900; }
+.subs { display:grid; gap:8px; margin-left:14px; padding-left:10px; border-left:3px dashed var(--ink); }
+.sub { position:relative; display:grid; gap:4px; padding-right:28px; }
+.preset-card { padding-right:40px; }
+.add-btn { justify-self:start; border:2px dashed var(--ink); border-radius:999px; padding:5px 14px; background:var(--paper); font-weight:800; font-size:14px; }
+.del-mini { position:absolute; top:8px; right:8px; width:26px; height:26px; padding:0; border:1.5px solid var(--ink); border-radius:50%; background:var(--paper); font-size:12px; font-weight:900; }
+.sub .del-mini { top:2px; right:0; }
+.code-box { font-family:ui-monospace, Menlo, Consolas, monospace; font-size:13px !important; background:#f7f6f3 !important; min-height:70px !important; }
+:root[data-theme="dark"] .code-box { background:#262626 !important; }
+.code-lang { width:auto; justify-self:start; padding:4px 8px; font-size:12px; }
+.add-btn.tiny { font-size:12px; padding:3px 10px; }
