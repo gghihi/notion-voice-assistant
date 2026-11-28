@@ -376,14 +376,6 @@ function imageList(holder) {
     const fig = document.createElement('figure'); fig.className = 'img-item';
     const pic = document.createElement('img'); pic.src = im.data || ''; pic.alt = '';
     fig.append(pic);
-    if (im.link) { // 影片時間點：像 YouTube「從這個時間點分享」的連結
-      const t = Number((im.link.match(/[?&]t=(\d+)/) || [])[1] || 0);
-      const a = document.createElement('a'); a.className = 'time-link'; a.href = im.link; a.target = '_blank'; a.rel = 'noopener';
-      a.textContent = `▶ ${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}　${im.link}`;
-      a.onclick = (e) => { if (ytId) { e.preventDefault(); ytCommandArgs('seekTo', [t, true]); ytCommand('playVideo'); } }; // 在上面的播放器直接跳過去
-      fig.append(a);
-      im.caption = im.caption && !/^⏱️ \d+:\d\d$/.test(im.caption) ? im.caption : '';
-    }
     const cap = field('input', '圖片說明（可空白）', im.caption, (v) => { im.caption = v; });
     fig.append(cap, smallBtn('✕', () => { holder.images.splice(k, 1); saveDraft(); renderFields(currentSecVals()); }, 'del-mini'));
     if (im.data) fig.append(smallBtn('✂️ 裁切', () => openCropper(im), 'add-btn tiny crop-btn'));
@@ -487,6 +479,10 @@ function buildPreset(sec, kind) {
       const del = smallBtn('✕', () => { if (it.bid && !confirm('要把這一項從 Notion 刪掉嗎？')) return; items.splice(idx, 1); paint(); saveDraft(); }, 'del-mini');
       if (it.bid) card.classList.add('saved');
       // ⬆️⬇️ 調整順序（這一段有鎖住的項目時不能換，因為 Notion 沒辦法移動那一項）
+      if (items.some((x) => x.locked) && items.length > 1 && idx === 0) {
+        const n = document.createElement('p'); n.className = 'hint'; n.textContent = '這一段有 🔒 項目（含圖片），重點不能換順序；小重點還是可以換';
+        list.append(n);
+      }
       if (!items.some((x) => x.locked) && items.length > 1) {
         const mv = document.createElement('div'); mv.className = 'move';
         const up = smallBtn('⬆️', () => { if (idx > 0) { [items[idx - 1], items[idx]] = [items[idx], items[idx - 1]]; paint(); saveDraft(); } }, 'mv-btn');
@@ -510,6 +506,13 @@ function buildPreset(sec, kind) {
           subs.innerHTML = '';
           it.subs.forEach((sb, j) => {
             const row = document.createElement('div'); row.className = 'sub';
+            if (it.subs.length > 1) { // 小重點換順序
+              const mv = document.createElement('div'); mv.className = 'move';
+              const up = smallBtn('⬆️', () => { if (j > 0) { [it.subs[j - 1], it.subs[j]] = [it.subs[j], it.subs[j - 1]]; paintSubs(); saveDraft(); } }, 'mv-btn');
+              const dn = smallBtn('⬇️', () => { if (j < it.subs.length - 1) { [it.subs[j + 1], it.subs[j]] = [it.subs[j], it.subs[j + 1]]; paintSubs(); saveDraft(); } }, 'mv-btn');
+              up.disabled = j === 0; dn.disabled = j === it.subs.length - 1;
+              mv.append(up, dn); row.append(mv);
+            }
             row.append(smallBtn('✕', () => { it.subs.splice(j, 1); paintSubs(); saveDraft(); }, 'del-mini'),
               field('input', '小重點標題', sb.title, (v) => { sb.title = v; }), field('textarea', '內容', sb.text, (v) => { sb.text = v; }));
             // 程式筆記用：小重點裡加一個程式碼／提示詞框（存成 Notion 的程式碼區塊）
@@ -695,7 +698,7 @@ function pickShotNow(t) {
   if (!target) return msg('先按「＋ 重點」或「＋ 一般問題」，再放截圖');
   const wide = !$('notePlayer').classList.contains('tall'); // 橫的影片才自動裁切
   curTarget = target;
-  pendingExtra = { ...(ytId ? { link: `https://youtu.be/${ytId}?t=${t}` } : {}), crop: wide };
+  pendingExtra = { crop: wide };
   $('imgPick').click();
 }
 
