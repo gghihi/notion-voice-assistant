@@ -142,11 +142,14 @@
     </div>
     <div class="player" id="notePlayer" hidden></div>
     <div class="ai-panel" id="aiPanel" hidden>
-      <p class="hint">AI 會看這部影片（IG／Threads 則讀貼文內文），照這一頁的範本格式寫一份草稿。寫好會切回手動模式讓你檢查、修改，<b>按「存起來」才會進 Notion</b>。</p>
-      <label class="note-sec"><div class="note-sec-head"><span>想讓 AI 特別注意什麼？（可以空白）</span><button type="button" class="mini-mic" id="aiHintMic">🎤</button></div>
-        <textarea id="aiHint" rows="3" placeholder="例如：多寫實作步驟、用條列、重點放在工具怎麼用"></textarea></label>
+      <button type="button" class="big-mic" id="aiHintMic" aria-label="按一下用說的交代 AI">🎤</button>
+      <p class="hint center">按一下麥克風，說說想讓 AI 注意什麼（不說也可以），再按「開始撰寫」</p>
+      <p class="ai-said" id="aiSaid" hidden></p>
+      <textarea id="aiHint" hidden></textarea>
       <button type="button" class="pill ai-go" id="aiGo">✨ 開始撰寫</button>
       <p class="ai-status" id="aiStatus"></p>
+      <div class="preview-head">👀 目前筆記的樣子</div>
+      <div class="note-preview" id="notePreview"></div>
     </div>
     <div id="noteFields" class="note-fields"></div>
     <label class="note-sec" id="noteOther"><div class="note-sec-head"><span id="noteOtherLabel">筆記</span></div>

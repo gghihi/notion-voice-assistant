@@ -285,3 +285,21 @@ body[data-tab="org"] { --accent:var(--c-blue); --accent-soft:var(--c-blue-bg); }
 .ai-panel { display:grid; gap:12px; }
 .ai-go { padding:12px; font-size:16px; }
 .ai-status { margin:0; font-weight:800; min-height:1.4em; }
+/* AI 模式：一顆大麥克風＋筆記預覽 */
+.big-mic { justify-self:center; width:96px; height:96px; border:3px solid var(--ink); border-radius:50%; background:var(--yellow); font-size:42px; box-shadow:var(--shadow); }
+.big-mic:active { transform:translate(2px,2px); box-shadow:none; }
+.big-mic.recording { background:#ff5a5a; animation:pulse 1.1s infinite; }
+.hint.center { text-align:center; margin:0; }
+.ai-said { margin:0; padding:8px 12px; border:2px dashed var(--ink); border-radius:12px; background:var(--yellow-soft); font-weight:700; }
+.preview-head { margin-top:6px; font-weight:900; color:var(--ink); }
+.note-preview { padding:14px 16px; background:#fff; color:#37352f; border:2px solid var(--ink); border-radius:12px; font-size:15px; line-height:1.6; }
+.note-preview .pv-h1 { margin:14px 0 6px; font-size:19px; font-weight:800; }
+.note-preview .pv-h1:first-child { margin-top:0; }
+.note-preview details { margin:4px 0 4px 2px; }
+.note-preview summary { cursor:pointer; font-weight:700; }
+.note-preview .pv-point > summary { font-size:17px; }
+.note-preview .pv-sub { margin-left:18px; }
+.note-preview .pv-sub > summary { font-size:15px; }
+.note-preview p { margin:4px 0 4px 20px; white-space:pre-line; }
+.note-preview pre { margin:6px 0 6px 20px; padding:8px 10px; background:#f7f6f3; border-radius:6px; font-size:13px; white-space:pre-wrap; }
+.note-preview .pv-link { color:#2f80ed; word-break:break-all; }

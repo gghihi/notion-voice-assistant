@@ -162,7 +162,7 @@ async function openNote(it) {
   const box = $('noteFields'); box.innerHTML = '<p class="hint">讀取範本格式中…</p>';
   $('noteOtherLabel').textContent = '筆記';
   $('noteSheet').hidden = false; $('noteBg').hidden = false;
-  setMode(false); $('aiStatus').textContent = '';
+  setMode(false); $('aiStatus').textContent = ''; $('aiHint').value = ''; $('aiSaid').hidden = true;
   let video = null;
   try { const o = await api('/api/organize/outline?id=' + it.id); noteSections = o.sections; video = o.video; } catch { noteSections = []; }
   if (noteItem !== it) return;
@@ -292,6 +292,7 @@ function buildPreset(sec, kind) {
 function setMode(ai) {
   $('modeAi').classList.toggle('on', ai); $('modeManual').classList.toggle('on', !ai);
   $('aiPanel').hidden = !ai;
+  if (ai) renderPreview();
   $('noteFields').hidden = ai;
   if (ai) $('noteOther').hidden = true; else $('noteOther').hidden = !!$('noteFields').children.length;
   $('noteMic').hidden = ai || !!$('noteFields').children.length;
@@ -299,6 +300,47 @@ function setMode(ai) {
 $('modeManual').onclick = () => setMode(false);
 $('modeAi').onclick = () => { if (!aiEnabled()) return msg('AI 小幫手在設定裡關掉了，打開後才能用'); setMode(true); };
 bindMic($('aiHintMic'), $('aiHint'));
+$('aiHint').addEventListener('input', () => { const t = $('aiHint').value.trim(); $('aiSaid').hidden = !t; $('aiSaid').textContent = '你說：「' + t + '」'; });
+
+// 「目前筆記的樣子」：用 Notion 的樣式預覽筆記本裡現在的內容（已存的＋還沒存的）
+function renderPreview() {
+  const box = $('notePreview'); box.innerHTML = '';
+  const add = (tag, text, cls) => { const e = document.createElement(tag); e.textContent = text; if (cls) e.className = cls; return e; };
+  const sec = {}; document.querySelectorAll('#noteFields textarea[data-id]').forEach((t) => { sec[t.dataset.id] = t.value; });
+  let any = false;
+  for (const s2 of noteSections) {
+    const items = noteItems[s2.id];
+    const text = sec[s2.id];
+    if (!(items && items.length) && !(text && text.trim())) continue;
+    any = true;
+    box.append(add('h4', s2.text, 'pv-h1'));
+    for (const it of items || []) {
+      if (it.kind === 'qa') {
+        const d = document.createElement('details'); d.open = true;
+        d.append(add('summary', it.q || '?'));
+        if (it.a) d.append(add('p', it.a));
+        (it.links || []).filter(Boolean).forEach((u) => d.append(add('p', '🔖 ' + u, 'pv-link')));
+        box.append(d);
+      } else {
+        const d = document.createElement('details'); d.open = true; d.className = 'pv-point';
+        d.append(add('summary', it.title || '重點'));
+        for (const sb of it.subs || []) {
+          const d2 = document.createElement('details'); d2.open = true; d2.className = 'pv-sub';
+          d2.append(add('summary', sb.title || '小重點'));
+          if (sb.text) d2.append(add('p', sb.text));
+          (sb.links || []).filter(Boolean).forEach((u) => d2.append(add('p', '🔖 ' + u, 'pv-link')));
+          if (sb.code) d2.append(add('pre', sb.code));
+          d.append(d2);
+        }
+        box.append(d);
+      }
+    }
+    if (text && text.trim()) box.append(add('p', text));
+  }
+  const other = $('noteText').value.trim();
+  if (other) { any = true; box.append(add('h4', '📝 我的筆記', 'pv-h1'), add('p', other)); }
+  if (!any) box.append(add('p', '還沒有內容，按「開始撰寫」讓 AI 幫你寫一份 ✨', 'hint'));
+}
 $('aiGo').onclick = async () => {
   if (!noteItem) return;
   const it = noteItem;
@@ -326,8 +368,8 @@ $('aiGo').onclick = async () => {
     try { localStorage.setItem(draftKey(it.id), JSON.stringify({ edited: true, other, sec, items: noteItems })); } catch {}
     $('aiStatus').textContent = '';
     await openNote(it); // 用剛剛的草稿重新排版
-    setMode(false);
-    msg('✨ AI 寫好草稿了，看一下、改一改，再按「存起來」');
+    setMode(true); // 留在 AI 模式，下面直接看到寫好的樣子
+    msg('✨ AI 寫好了！下面是筆記的樣子，要改就切到「手動撰寫」，沒問題就按「存起來」');
   } catch (e) { $('aiStatus').textContent = '🤖 ' + e.message; }
   finally { clearInterval(timer); $('aiGo').disabled = false; }
 };
