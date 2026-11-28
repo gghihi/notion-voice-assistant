@@ -340,6 +340,9 @@ window.addEventListener('message', (e) => {
   if (!/youtube(-nocookie)?\.com$/.test(new URL(e.origin).hostname)) return;
   try { const d = typeof e.data === 'string' ? JSON.parse(e.data) : e.data; if (d?.info && typeof d.info.currentTime === 'number') ytTime = d.info.currentTime; } catch {}
 });
+function ytCommand(func) { // 叫 YouTube 播放器暫停／播放
+  $('notePlayer').querySelector('iframe')?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func, args: [] }), '*');
+}
 function listenYouTube() { // 請 YouTube 播放器回報目前時間
   const f = $('notePlayer').querySelector('iframe');
   if (f) f.contentWindow?.postMessage(JSON.stringify({ event: 'listening', id: 1 }), '*');
@@ -372,6 +375,7 @@ $('snapBtn').onclick = async () => {
   const t = Math.floor(ytTime), mm = Math.floor(t / 60), ss = String(t % 60).padStart(2, '0');
   const extra = ytId ? { caption: `⏱️ ${mm}:${ss}`, link: `https://youtu.be/${ytId}?t=${t}` } : {};
   if (ytId) {
+    ytCommand('pauseVideo'); // 先暫停，畫面才不會跑掉
     $('snapBtn').disabled = true; msg(`📸 擷取 ${mm}:${ss} 的畫面中…`);
     try {
       const f = await api(`/api/video/frame?id=${ytId}&t=${t}`);
@@ -380,7 +384,7 @@ $('snapBtn').onclick = async () => {
       saveDraft(); renderFields(currentSecVals());
       Sound.play('pop');
       return msg(`📸 已把 ${mm}:${ss} 的畫面放進筆記`);
-    } catch { msg('抓不到這一秒的畫面，改成從相簿選圖'); }
+    } catch (e) { msg('😢 ' + e.message + '\n可以改用「⛶ 全螢幕截圖模式」自己截圖'); return; }
     finally { $('snapBtn').disabled = false; }
   }
   curTarget = target; pendingExtra = extra; $('imgPick').click();

@@ -209,8 +209,8 @@ export default {
       }
       if (url.pathname === '/api/video/frame' && req.method === 'GET') {
         // YouTube 某一秒的畫面（預覽縮圖）
-        const f = await youtubeFrame(url.searchParams.get('id') || '', Math.max(0, Number(url.searchParams.get('t')) || 0)).catch(() => null);
-        return f ? json(f, 200, h) : json({ error: '抓不到這一秒的畫面' }, 404, h);
+        const f = await youtubeFrame(url.searchParams.get('id') || '', Math.max(0, Number(url.searchParams.get('t')) || 0)).catch((e) => ({ error: e.message }));
+        return f.dataUrl ? json(f, 200, h) : json({ error: `抓不到這一秒的畫面：${f.error}` }, 404, h);
       }
       if (url.pathname === '/api/upload' && req.method === 'POST') {
         // 筆記裡的圖片：APP 先壓縮成 JPEG，這裡轉交給 Notion（最大 6MB）

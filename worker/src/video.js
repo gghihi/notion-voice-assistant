@@ -175,15 +175,17 @@ export function storyboardFrame(spec, seconds) {
 }
 
 export async function youtubeFrame(id, seconds, fetchImpl = fetch) {
-  if (!/^[\w-]{11}$/.test(id)) return null;
-  const html = await getText(`https://www.youtube.com/watch?v=${id}&hl=zh-TW`, fetchImpl);
+  if (!/^[\w-]{11}$/.test(id)) return { error: '影片編號不對' };
+  let html;
+  try { html = await getText(`https://www.youtube.com/watch?v=${id}&hl=zh-TW`, fetchImpl); }
+  catch (e) { return { error: 'YouTube 沒回應（' + e.message + '）' }; }
   const m = html.match(/"playerStoryboardSpecRenderer":\{"spec":"((?:[^"\\]|\\.)*)"/);
-  if (!m) return null;
+  if (!m) return { error: /confirm you.re not a bot|consent\.youtube/i.test(html) ? 'YouTube 把伺服器當成機器人擋掉了' : '這部影片沒有提供預覽縮圖' };
   const spec = JSON.parse('"' + m[1] + '"');
   const f = storyboardFrame(spec, seconds);
-  if (!f) return null;
+  if (!f) return { error: '預覽縮圖格式看不懂' };
   const r = await fetchImpl(f.url, { headers: UA });
-  if (!r.ok) return null;
+  if (!r.ok) return { error: '預覽圖下載失敗（' + r.status + '）' };
   const buf = new Uint8Array(await r.arrayBuffer());
   let bin = ''; for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000));
   return { dataUrl: 'data:image/jpeg;base64,' + btoa(bin), x: f.x, y: f.y, w: f.w, h: f.h };
