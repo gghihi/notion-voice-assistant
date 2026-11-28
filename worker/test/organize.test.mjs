@@ -65,3 +65,11 @@ test('程式筆記：小重點裡的程式碼框', () => {
   assert.equal(kids[0].heading_3.children[0].code.rich_text[0].text.content, '<role>助理</role>');
   assert.equal(kids[1].heading_3.children[0].code.language, 'xml');
 });
+
+test('網址書籤', () => {
+  const b = itemBlocks([{ kind: 'point', title: 'p', subs: [{ title: '註冊', links: ['https://claude.ai/new', 'javascript:alert(1)', ''] }] }, { kind: 'qa', q: '哪裡下載？', links: ['https://claude.ai/download'] }]);
+  const sub = b[0].heading_2.children[0].heading_3.children;
+  assert.deepEqual(sub.map((x) => x.type), ['bookmark']);
+  assert.equal(sub[0].bookmark.url, 'https://claude.ai/new');
+  assert.equal(b[1].toggle.children[0].bookmark.url, 'https://claude.ai/download');
+});

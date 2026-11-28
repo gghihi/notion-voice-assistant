@@ -270,3 +270,7 @@ body[data-tab="org"] { --accent:var(--c-blue); --accent-soft:var(--c-blue-bg); }
 #noteSheet .player.tall { height:min(34vh, 300px); max-width:min(100%, 240px); }
 #noteSheet .player { height:auto; aspect-ratio:16/9; width:min(78%, 300px); max-width:none; }
 #noteSheet .player.tall { aspect-ratio:auto; height:min(30vh, 260px); width:min(60%, 200px); }
+.links { display:grid; gap:6px; }
+.link-row { display:flex; gap:6px; align-items:center; }
+.link-row input { flex:1; font-size:14px !important; padding:6px 8px !important; }
+.del-inline { flex:none; width:26px; height:26px; padding:0; border:1.5px solid var(--ink); border-radius:50%; background:var(--paper); font-size:12px; font-weight:900; }

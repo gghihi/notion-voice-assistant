@@ -221,14 +221,18 @@ export function sectionAnchor(blocks, headingId) {
 }
 
 export const CODE_LANGS = ['xml', 'plain text', 'javascript', 'python', 'html', 'css', 'json', 'markdown', 'bash', 'sql'];
+// 網址書籤（只收 http/https）
+const bookmarks = (links) => (Array.isArray(links) ? links : []).filter((u) => typeof u === 'string' && /^https?:\/\/[^\s]+$/.test(u.trim()) && u.length < 2000)
+  .slice(0, 10).map((u) => ({ object: 'block', type: 'bookmark', bookmark: { url: u.trim() } }));
 const rt = (s) => (s ? [{ type: 'text', text: { content: String(s).slice(0, 2000) } }] : []);
 /** APP 裡用「＋ 重點／＋ 副重點／＋ 一般問題」做的結構 → Notion 區塊（和範本按鈕插入的格式一樣） */
 export function itemBlocks(items) {
   const out = [];
   for (const it of (Array.isArray(items) ? items : []).slice(0, 30)) {
     if (it?.kind === 'point') {
-      const subs = (Array.isArray(it.subs) ? it.subs : []).slice(0, 20).filter((s) => s && (s.title || s.text || s.code)).map((s) => {
-        const kids = paragraphs(s.text || '').filter((p) => p.paragraph.rich_text.length).slice(0, 49);
+      const subs = (Array.isArray(it.subs) ? it.subs : []).slice(0, 20).filter((s) => s && (s.title || s.text || s.code || bookmarks(s.links).length)).map((s) => {
+        const kids = paragraphs(s.text || '').filter((p) => p.paragraph.rich_text.length).slice(0, 39);
+        kids.push(...bookmarks(s.links));
         // 程式筆記範本的「提示詞按鈕」：小標題裡放一個程式碼框
         if (s.code) kids.push({ object: 'block', type: 'code', code: { language: CODE_LANGS.includes(s.lang) ? s.lang : 'xml', rich_text: rt(s.code) } });
         return { object: 'block', type: 'heading_3', heading_3: { rich_text: rt(s.title || '副重點'), is_toggleable: true, children: kids } };
@@ -236,8 +240,9 @@ export function itemBlocks(items) {
       if (!it.title && !subs.length) continue;
       out.push({ object: 'block', type: 'heading_2', heading_2: { rich_text: rt(it.title || '重點'), is_toggleable: true, children: subs } });
     } else if (it?.kind === 'qa') {
-      if (!it.q && !it.a) continue;
-      out.push({ object: 'block', type: 'toggle', toggle: { rich_text: rt(it.q || '?'), children: paragraphs(it.a || '').filter((p) => p.paragraph.rich_text.length).slice(0, 50) } });
+      const links = bookmarks(it.links);
+      if (!it.q && !it.a && !links.length) continue;
+      out.push({ object: 'block', type: 'toggle', toggle: { rich_text: rt(it.q || '?'), children: [...paragraphs(it.a || '').filter((p) => p.paragraph.rich_text.length).slice(0, 40), ...links] } });
     }
   }
   return out;

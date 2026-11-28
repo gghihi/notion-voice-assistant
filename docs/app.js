@@ -193,6 +193,24 @@ function field(tag, placeholder, value, onInput, cls) {
   return e;
 }
 function smallBtn(text, onClick, cls = 'add-btn') { const b = document.createElement('button'); b.type = 'button'; b.className = cls; b.textContent = text; b.onclick = onClick; return b; }
+// 網址書籤清單：每列一個網址，存進 Notion 會變成書籤（有網站預覽卡）
+function linkList(holder) {
+  holder.links ||= [];
+  const box = document.createElement('div'); box.className = 'links';
+  const paint = () => {
+    box.innerHTML = '';
+    holder.links.forEach((u, k) => {
+      const row = document.createElement('div'); row.className = 'link-row';
+      const inp = field('input', 'https://網址', u, (v) => { holder.links[k] = v.trim(); });
+      inp.type = 'url'; inp.inputMode = 'url';
+      row.append(document.createTextNode('🔖'), inp, smallBtn('✕', () => { holder.links.splice(k, 1); paint(); saveDraft(); }, 'del-inline'));
+      box.append(row);
+    });
+    box.append(smallBtn('＋ 網址書籤', () => { holder.links.push(''); paint(); saveDraft(); box.querySelector('.link-row:last-of-type input')?.focus(); }, 'add-btn tiny'));
+  };
+  paint();
+  return box;
+}
 function buildPreset(sec, kind) {
   const wrap = document.createElement('div'); wrap.className = 'note-sec preset';
   const head = document.createElement('div'); head.className = 'note-sec-head'; head.innerHTML = '<span></span>'; head.firstChild.textContent = sec.text;
@@ -204,7 +222,7 @@ function buildPreset(sec, kind) {
       const card = document.createElement('div'); card.className = 'preset-card ' + kind;
       const del = smallBtn('✕', () => { items.splice(idx, 1); paint(); saveDraft(); }, 'del-mini');
       if (kind === 'qa') {
-        card.append(del, field('input', '問題（預設「?」）', it.q, (v) => { it.q = v; }), field('textarea', '答案／筆記', it.a, (v) => { it.a = v; }));
+        card.append(del, field('input', '問題（預設「?」）', it.q, (v) => { it.q = v; }), field('textarea', '答案／筆記', it.a, (v) => { it.a = v; }), linkList(it));
       } else {
         const subs = document.createElement('div'); subs.className = 'subs';
         const paintSubs = () => {
@@ -214,6 +232,7 @@ function buildPreset(sec, kind) {
             row.append(smallBtn('✕', () => { it.subs.splice(j, 1); paintSubs(); saveDraft(); }, 'del-mini'),
               field('input', '小重點標題', sb.title, (v) => { sb.title = v; }), field('textarea', '內容', sb.text, (v) => { sb.text = v; }));
             // 程式筆記用：小重點裡加一個程式碼／提示詞框（存成 Notion 的程式碼區塊）
+            row.append(linkList(sb));
             if (sb.code !== undefined) {
               const lang = document.createElement('select'); lang.className = 'code-lang';
               ['xml', 'plain text', 'markdown', 'javascript', 'python', 'html', 'css', 'json', 'bash', 'sql'].forEach((l) => lang.add(new Option(l === 'plain text' ? '純文字' : l.toUpperCase(), l)));
@@ -261,7 +280,8 @@ async function saveNote(markDone) {
   document.querySelectorAll('#noteFields textarea[data-id]').forEach((t) => { if (t.value.trim()) sections[t.dataset.id] = t.value; });
   const items = {};
   for (const [sid, list] of Object.entries(noteItems)) {
-    const clean = (list || []).filter((x) => x.kind === 'qa' ? (x.q || x.a) : (x.title || (x.subs || []).some((s2) => s2.title || s2.text)));
+    const hasLink = (o) => (o.links || []).some((u) => /^https?:\/\//.test(u || ''));
+    const clean = (list || []).filter((x) => x.kind === 'qa' ? (x.q || x.a || hasLink(x)) : (x.title || (x.subs || []).some((s2) => s2.title || s2.text || s2.code || hasLink(s2))));
     if (clean.length) items[sid] = clean;
   }
   const text = $('noteText').value.trim();
