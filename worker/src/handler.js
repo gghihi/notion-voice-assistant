@@ -2,7 +2,7 @@
 import { checkPassword, issueToken, verifyToken } from './auth.js';
 import { checkDataSources, createNote, createTask, createPage, listTemplates, createPageWithTemplate, getDataSource, searchPages, getPage, pageTitle, pageIdFromUrl, trashPage } from './notion.js';
 import { DBS, describe, toNotionProps, fromNotionProps } from './fields.js';
-import { detect, fetchInfo, buildPage, CHANNEL } from './video.js';
+import { detect, fetchInfo, buildPage, CHANNEL, resolveShare } from './video.js';
 import { parseWhen, twIso } from './when.js';
 import { aiTask, aiSuggest, aiNotice } from './ai.js';
 
@@ -166,7 +166,7 @@ export default {
         return json(page, 200, h);
       }
       if (url.pathname === '/api/video/preview' && req.method === 'POST') {
-        const v = detect((await readJson(req))?.url);
+        const v = await resolveShare(detect((await readJson(req))?.url));
         if (!v) return json({ error: '看不懂這個網址，目前支援 YouTube、Instagram、Threads' }, 400, h);
         return json({ ...v, channel: CHANNEL[v.platform], ...(await fetchInfo(v)) }, 200, h);
       }
@@ -205,7 +205,7 @@ export default {
       }
       if (url.pathname === '/api/video' && req.method === 'POST') {
         const body = await readJson(req);
-        const v = detect(body?.url);
+        const v = await resolveShare(detect(body?.url));
         if (!v) return json({ error: '看不懂這個網址，目前支援 YouTube、Instagram、Threads' }, 400, h);
         const info = await fetchInfo(v);
         if (typeof body.title === 'string' && body.title.trim()) info.title = body.title.trim().slice(0, 200);

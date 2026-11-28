@@ -27,6 +27,9 @@ export function detect(raw) {
   if (host === 'threads.net' || host === 'threads.com') {
     const t = u.pathname.match(/^\/(@[\w.]+)\/post\/([\w-]+)/);
     if (t) return { platform: 'Threads', id: t[2], url: `https://www.threads.com/${t[1]}/post/${t[2]}` };
+    // 分享按鈕給的短網址（/share/代碼），要先轉成真正的貼文網址
+    const sh = u.pathname.match(/^\/share\/([\w-]+)/);
+    if (sh) return { platform: 'Threads', share: true, id: sh[1], url: `https://www.threads.com/share/${sh[1]}` };
   }
   return null;
 }
@@ -40,6 +43,22 @@ async function getText(url, fetchImpl) {
   const r = await fetchImpl(url, { headers: UA, signal: ctl, redirect: 'follow' });
   if (!r.ok) throw new Error('http_' + r.status);
   return (await r.text()).slice(0, 1500000);
+}
+
+/** 短網址 → 真正的貼文網址（跟著轉址走，或讀頁面裡的 og:url／canonical）；轉不出來就回傳原本的 */
+export async function resolveShare(v, fetchImpl = fetch) {
+  if (!v?.share) return v;
+  try {
+    const r = await fetchImpl(v.url, { headers: UA, redirect: 'follow', signal: AbortSignal.timeout ? AbortSignal.timeout(8000) : undefined });
+    const direct = detect(r.url || '');
+    if (direct && !direct.share) return direct;
+    const html = (await r.text()).slice(0, 500000);
+    const found = meta(html, 'og:url') || (html.match(/<link[^>]+rel=["']canonical["'][^>]+href=["']([^"']+)/i) || [])[1]
+      || (html.match(/https:\/\/www\.threads\.(?:net|com)\/@[\w.]+\/post\/[\w-]+/) || [])[0];
+    const real = found && detect(decode(found));
+    if (real && !real.share) return real;
+  } catch {}
+  return v;
 }
 
 /** 抓影片資訊：{ title, author, thumbnail, uploadDate(YYYY-MM-DD) } */

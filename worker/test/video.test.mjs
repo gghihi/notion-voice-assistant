@@ -68,3 +68,15 @@ test('Threads 貼文', async () => {
   assert.equal(p.properties.課堂筆記通路.select.name, 'threads');
   assert.equal(JSON.stringify(p.children).includes('第二行'), false);
 });
+
+import { resolveShare } from '../src/video.js';
+test('Threads 分享短網址 → 真正的貼文網址', async () => {
+  const v = detect('https://www.threads.com/share/BAYpkSHskC');
+  assert.equal(v.share, true);
+  const viaRedirect = await resolveShare(v, async () => ({ url: 'https://www.threads.com/@be.ai.curator/post/DAbc123', text: async () => '' }));
+  assert.equal(viaRedirect.url, 'https://www.threads.com/@be.ai.curator/post/DAbc123');
+  const viaMeta = await resolveShare(v, async () => ({ url: v.url, text: async () => '<meta property="og:url" content="https://www.threads.net/@someone/post/XYZ9">' }));
+  assert.equal(viaMeta.url, 'https://www.threads.com/@someone/post/XYZ9');
+  const fail = await resolveShare(v, async () => { throw new Error('x'); });
+  assert.equal(fail.share, true);
+});
