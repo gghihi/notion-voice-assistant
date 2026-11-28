@@ -128,7 +128,18 @@ function paintOrganize() {
       }
       const write = document.createElement('button'); write.type = 'button'; write.className = 'write-btn segb'; write.textContent = '📝 寫筆記';
       write.onclick = () => openNote(it);
-      const actions = document.createElement('div'); actions.className = 'org-actions'; actions.append(seg, write);
+      const trash = document.createElement('button'); trash.type = 'button'; trash.className = 'trash-btn segb'; trash.textContent = '🗑️'; trash.setAttribute('aria-label', '刪除');
+      trash.onclick = async () => {
+        if (!confirm(`要刪掉「${it.title}」嗎？\n\nNotion 裡的這一頁會放進垃圾桶（30 天內可以在 Notion 救回來），整理庫和公佈欄也會一起拿掉。`)) return;
+        row.classList.add('tearing');
+        try {
+          await api('/api/organize/delete', { id: it.id });
+          orgItems = orgItems.filter((x) => x.id !== it.id);
+          setTimeout(paintOrganize, 250); loadBoard();
+          msg('🗑️ 已刪除（Notion 垃圾桶可以救回）');
+        } catch (e) { row.classList.remove('tearing'); msg(e.message); }
+      };
+      const actions = document.createElement('div'); actions.className = 'org-actions'; actions.append(seg, write, trash);
       row.append(title, meta, actions); g.append(row);
     }
     list.append(g);

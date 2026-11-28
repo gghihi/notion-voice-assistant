@@ -2,8 +2,8 @@
 // 用「鬧鐘」（alarm）在下一個提醒時間叫醒自己，不用每分鐘檢查。
 import { DurableObject } from 'cloudflare:workers';
 import { readFileSync } from './schema.js';
-import { addOrganize, listOrganize, getOrganize, withStatus, nextTenPm, digestMessage } from './organize.js';
-import { addSaved, listSaved, removeSaved, getSaved } from './board.js';
+import { addOrganize, listOrganize, getOrganize, withStatus, nextTenPm, digestMessage, removeOrganize } from './organize.js';
+import { addSaved, listSaved, removeSaved, getSaved, removeSavedByUrl } from './board.js';
 import { saveSubscription, addReminder, pushAll, runDueReminders, nextReminderAt } from './reminders.js';
 
 // 把 Durable Object 的 SQL 包成和 D1 一樣的用法，讓 reminders.js 兩邊共用
@@ -38,6 +38,8 @@ export class Store extends DurableObject {
   async addOrganize(item) { await addOrganize(this.e, item); await this.reschedule(); }
   async listOrganize() { return listOrganize(this.e); }
   async getOrganize(id) { return getOrganize(this.e, id); }
+  // 從整理庫刪掉：同一頁在公佈欄的紀錄也一起拿掉
+  async deleteOrganize(id) { const it = await getOrganize(this.e, id); if (!it) return null; await removeOrganize(this.e, id); await removeSavedByUrl(this.e, it.url); return it; }
   async organizeWithStatus() { return withStatus(this.e, await listOrganize(this.e)); }
   async saveSubscription(sub) { return saveSubscription(this.e, sub); }
   async addReminder(r) { await addReminder(this.e, r); await this.reschedule(); }

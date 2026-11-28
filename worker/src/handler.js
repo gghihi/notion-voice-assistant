@@ -207,6 +207,16 @@ export default {
         try { await updatePageProps(env, pid, props); } catch (e) { if (e.status !== 400) throw e; delete props.Done; await updatePageProps(env, pid, props).catch(() => {}); }
         return json({ ok: true, status }, 200, h);
       }
+      if (url.pathname === '/api/organize/delete' && req.method === 'POST') {
+        // 刪掉整理庫的一筆：Notion 那一頁放進垃圾桶（30 天內可救回），整理庫和公佈欄都移除
+        const body = await readJson(req);
+        const item = await store(env).getOrganize(body?.id);
+        const pid = item && pageIdFromUrl(item.url);
+        if (!item) return json({ error: '找不到這筆，可能已經超過 7 天' }, 404, h);
+        if (pid) { try { await trashPage(env, pid); } catch (e) { if (e.status !== 404) throw e; } }
+        await store(env).deleteOrganize(item.id);
+        return json({ ok: true }, 200, h);
+      }
       if (url.pathname === '/api/organize/status' && req.method === 'POST') {
         const body = await readJson(req);
         const patch = STATUS_TO_NOTION[body?.status];
