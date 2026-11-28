@@ -274,3 +274,6 @@ body[data-tab="org"] { --accent:var(--c-blue); --accent-soft:var(--c-blue-bg); }
 .link-row { display:flex; gap:6px; align-items:center; }
 .link-row input { flex:1; font-size:14px !important; padding:6px 8px !important; }
 .del-inline { flex:none; width:26px; height:26px; padding:0; border:1.5px solid var(--ink); border-radius:50%; background:var(--paper); font-size:12px; font-weight:900; }
+.preset-card.saved { border-style:solid; }
+.preset-card.saved::after { content:"已存"; position:absolute; top:-9px; left:12px; padding:0 6px; font-size:11px; font-weight:900; background:var(--paper); border:1.5px solid var(--ink); border-radius:999px; }
+.preset-card.locked { background:var(--soft); }

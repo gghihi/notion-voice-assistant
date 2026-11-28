@@ -247,3 +247,8 @@ export function itemBlocks(items) {
   }
   return out;
 }
+
+export async function deleteBlock(env, blockId) {
+  try { await call(env, '/blocks/' + blockId, 'DELETE'); }
+  catch (e) { if (e.status !== 404) throw e; }
+}

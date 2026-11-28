@@ -3,6 +3,7 @@ import { checkPassword, issueToken, verifyToken } from './auth.js';
 import { checkDataSources, createNote, createTask, createPage, listTemplates, createPageWithTemplate, getDataSource, searchPages, getPage, pageTitle, pageIdFromUrl, trashPage, updatePageProps, appendBlocks, paragraphs, listChildren, insertAfter, outlineOf, sectionEnd, sectionAnchor, itemBlocks } from './notion.js';
 import { DBS, describe, toNotionProps, fromNotionProps } from './fields.js';
 import { STATUS_TO_NOTION } from './organize.js';
+import { readSection, saveSectionItems, savePlain, presetOf } from './notes.js';
 import { detect, fetchInfo, buildPage, CHANNEL, resolveShare } from './video.js';
 import { parseWhen, twIso } from './when.js';
 import { aiTask, aiSuggest, aiNotice } from './ai.js';
@@ -109,32 +110,52 @@ export default {
         if (!pid) return json({ error: '找不到這筆，可能已經超過 7 天' }, 404, h);
         const [blocks, page] = await Promise.all([listChildren(env, pid), getPage(env, pid).catch(() => null)]);
         const video = page?.properties?.['相關連結']?.url || null;
-        return json({ sections: outlineOf(blocks), video: video && detect(video) }, 200, h);
+        // 每一段順便讀出已經寫好的筆記（可以在 APP 裡修改）
+        const sections = [];
+        for (const sec of outlineOf(blocks)) {
+          let existing = null;
+          try { existing = await readSection(env, blocks, sec); } catch (e) { console.log('read', e.message); }
+          sections.push({ ...sec, preset: presetOf(sec), existing });
+        }
+        return json({ sections, video: video && detect(video) }, 200, h);
       }
       if (url.pathname === '/api/organize/note' && req.method === 'POST') {
         const body = await readJson(req);
         const text = typeof body?.text === 'string' ? body.text.trim() : '';
         const sections = body?.sections && typeof body.sections === 'object' ? Object.entries(body.sections)
           .map(([k, v]) => [k, typeof v === 'string' ? v.trim() : '']).filter(([, v]) => v) : [];
-        const items = body?.items && typeof body.items === 'object' ? Object.entries(body.items).map(([k, v]) => [k, itemBlocks(v)]).filter(([, v]) => v.length) : [];
+        const editItems = body?.items && typeof body.items === 'object' ? Object.entries(body.items).filter(([, v]) => Array.isArray(v)) : [];
+        const deleted = body?.deleted && typeof body.deleted === 'object' ? body.deleted : {};
+        const plainEdits = body?.plain && typeof body.plain === 'object' ? Object.entries(body.plain).filter(([, v]) => v && typeof v.text === 'string') : [];
+        const items = editItems.filter(([, v]) => v.some((x) => !x.bid || x.dirty)).map(([k, v]) => [k, v]);
         const total = text.length + sections.reduce((n, [, v]) => n + v.length, 0) + JSON.stringify(body?.items || {}).length / 4;
-        if (!total) return json({ error: '筆記是空的' }, 400, h);
-        if (!text && !sections.length && !items.length) return json({ error: '筆記是空的' }, 400, h);
+        const anyDelete = Object.values(deleted).some((v) => Array.isArray(v) && v.length);
+        if (!text && !sections.length && !items.length && !plainEdits.length && !anyDelete) return json({ error: '沒有要存的變更' }, 400, h);
         if (total > MAX_TEXT) return json({ error: '筆記太長（上限 5000 字）' }, 400, h);
         // 只能寫進「整理庫裡有的」頁面
         const item = await store(env).getOrganize(body.id);
         const pid = item && pageIdFromUrl(item.url);
         if (!pid) return json({ error: '找不到這筆，可能已經超過 7 天' }, 404, h);
         // 照範本格式：寫進各自的段落（收合的放進裡面；一般標題插在該段最後面）
-        if (sections.length || items.length) {
-          const blocks = await listChildren(env, pid);
+        if (sections.length || items.length || plainEdits.length || anyDelete) {
+          let blocks = await listChildren(env, pid);
           const outline = outlineOf(blocks);
-          // 結構化的「重點／一般問題」：照範本按鈕的做法，放在按鈕上方
-          for (const [sid, kids] of items) {
+          // 結構化的「重點／一般問題」：新增的放在按鈕上方；改過的在原位置換掉；刪掉的移除
+          const touched = new Set([...items.map(([k]) => k), ...Object.keys(deleted)]);
+          for (const sid of touched) {
             const sec = outline.find((o) => o.id === sid);
             if (!sec) continue;
-            if (sec.toggle) await appendBlocks(env, sid, kids);
-            else await insertAfter(env, pid, sectionAnchor(blocks, sid), kids);
+            const list = (items.find(([k]) => k === sid) || [, []])[1];
+            if (sec.toggle) { const nb = itemBlocks(list.filter((x) => !x.bid)); if (nb.length) await appendBlocks(env, sid, nb); }
+            else await saveSectionItems(env, pid, blocks, sec, list, Array.isArray(deleted[sid]) ? deleted[sid] : []);
+            blocks = await listChildren(env, pid);
+          }
+          // 一般段落：整段改寫
+          for (const [sid, v] of plainEdits) {
+            const sec = outline.find((o) => o.id === sid);
+            if (!sec) continue;
+            await savePlain(env, pid, blocks, sec, v.text.slice(0, MAX_TEXT), Array.isArray(v.oldIds) ? v.oldIds : []);
+            blocks = await listChildren(env, pid);
           }
           for (const [sid, v] of sections) {
             const sec = outline.find((o) => o.id === sid);
