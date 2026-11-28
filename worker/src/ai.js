@@ -7,14 +7,14 @@ export class AiError extends Error {
   constructor(kind, detail = '') { super('ai_' + kind); this.kind = kind; this.detail = detail; } // kind: quota（額度用完）/ off / fail
 }
 
-async function callModel(env, model, prompt, fast = true) {
+async function callModel(env, model, prompt, fast = true, opts = {}) {
   const body = JSON.stringify({
-    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    contents: [{ role: 'user', parts: [...(opts.parts || []), { text: prompt }] }],
     // 分類、取標題這種小事不需要「先想一想」，關掉可以快好幾秒
-    generationConfig: { temperature: 0.2, responseMimeType: 'application/json', maxOutputTokens: 600, ...(fast ? { thinkingConfig: { thinkingBudget: 0 } } : {}) },
+    generationConfig: { temperature: 0.2, responseMimeType: 'application/json', maxOutputTokens: opts.maxTokens || 600, ...(fast ? { thinkingConfig: { thinkingBudget: 0 } } : {}) },
   });
   const path = `/v1beta/models/${model}:generateContent`;
-  const signal = AbortSignal.timeout ? AbortSignal.timeout(8000) : undefined;
+  const signal = AbortSignal.timeout ? AbortSignal.timeout(opts.timeout || 8000) : undefined;
   const res = env.GEMINI_PROXY
     ? await env.GEMINI_PROXY.fetch('https://gemini' + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, signal })
     : await fetch('https://generativelanguage.googleapis.com' + path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY || '' }, body, signal });
@@ -26,14 +26,14 @@ async function callModel(env, model, prompt, fast = true) {
 }
 
 /** 先試主要模型，失敗再試備用模型；兩個都額度用完就回報 quota */
-export async function askGemini(env, prompt) {
+export async function askGemini(env, prompt, opts = {}) {
   if (env.AI_ENABLED === '0') throw new AiError('off');
   if (env.AI_SIMULATE_QUOTA === '1') throw new AiError('quota'); // 測試「額度用完」用
   let quota = false, detail = 'no_model';
   for (const model of [env.GEMINI_MODEL, env.GEMINI_FALLBACK_MODEL].filter(Boolean)) {
     try {
-      try { return await callModel(env, model, prompt, true); }
-      catch (e) { if (e.kind === 'fail' && e.detail === '400') return await callModel(env, model, prompt, false); throw e; } // 不接受「不思考」設定就照一般方式
+      try { return await callModel(env, model, prompt, true, opts); }
+      catch (e) { if (e.kind === 'fail' && e.detail === '400') return await callModel(env, model, prompt, false, opts); throw e; } // 不接受「不思考」設定就照一般方式
     }
     catch (e) {
       if (e.kind === 'quota') quota = true;
@@ -111,4 +111,48 @@ ${optionsText(fields, cfg.allow)}`;
     title: cfg.wantTitle && typeof r?.title === 'string' && r.title.trim() ? r.title.trim().slice(0, 100) : null,
     props,
   };
+}
+
+/**
+ * AI 撰寫筆記：照這一頁的範本格式寫草稿。
+ * YouTube 直接把影片交給 Gemini 看；IG／Threads 用貼文內文。
+ * sections：[{ id, text, preset }]；回傳 { [段落id]: items 或 { text } }
+ */
+export async function aiWriteNote(env, { title, video, caption, sections, hint }) {
+  const spec = sections.map((s) => s.preset === 'point'
+    ? `"${s.id}": 段落「${s.text}」→ 重點陣列 [{"title": 重點標題, "subs": [{"title": 小重點標題, "text": 內容（可多行）}]}]，3～6 個重點，每個 1～4 個小重點`
+    : s.preset === 'qa'
+      ? `"${s.id}": 段落「${s.text}」→ 問答陣列 [{"q": 問題, "a": 答案}]，2～4 題，幫助複習`
+      : `"${s.id}": 段落「${s.text}」→ {"text": 這一段要寫的內容（可多行）}`).join('\n');
+  const prompt = `你是筆記整理助理，用繁體中文、白話、條理清楚地幫使用者把影片整理成筆記。
+影片標題：「${title || ''}」
+${caption ? `貼文內文：「${caption.slice(0, 2500)}」\n` : ''}${hint ? `使用者特別交代：「${String(hint).slice(0, 500)}」\n` : ''}
+請只根據影片（或內文）實際提到的內容來寫，沒提到的不要編。
+回傳 JSON，鍵是段落編號：
+${spec}`;
+  const parts = video?.platform === 'YouTube' ? [{ file_data: { file_uri: video.url, mime_type: 'video/*' } }] : [];
+  try {
+    return await askGemini(env, prompt, { parts, timeout: 55000, maxTokens: 4000 });
+  } catch (e) {
+    if (!parts.length || e.kind === 'quota' || e.kind === 'off') throw e;
+    // 影片太長或看不了 → 只用標題／內文再試一次
+    return askGemini(env, prompt + '\n（影片無法讀取，請根據標題盡量整理，不確定的寫「待補」）', { timeout: 25000, maxTokens: 3000 });
+  }
+}
+
+/** 整理 AI 回傳的草稿，只留格式正確的部分 */
+export function cleanNoteDraft(raw, sections) {
+  const out = {};
+  const str = (v, n) => (typeof v === 'string' ? v.trim().slice(0, n) : '');
+  for (const s of sections) {
+    const v = raw?.[s.id];
+    if (s.preset === 'point' && Array.isArray(v)) {
+      out[s.id] = v.slice(0, 8).map((p) => ({ kind: 'point', title: str(p?.title, 200), subs: (Array.isArray(p?.subs) ? p.subs : []).slice(0, 8).map((x) => ({ title: str(x?.title, 200), text: str(x?.text, 1500), links: [] })) })).filter((p) => p.title || p.subs.length);
+    } else if (s.preset === 'qa' && Array.isArray(v)) {
+      out[s.id] = v.slice(0, 8).map((q) => ({ kind: 'qa', q: str(q?.q, 300), a: str(q?.a, 1500), links: [] })).filter((q) => q.q || q.a);
+    } else if (!s.preset && v && typeof v.text === 'string') {
+      out[s.id] = { text: str(v.text, 3000) };
+    }
+  }
+  return out;
 }

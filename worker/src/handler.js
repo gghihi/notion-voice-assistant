@@ -6,7 +6,7 @@ import { STATUS_TO_NOTION } from './organize.js';
 import { readSection, saveSectionItems, savePlain, presetOf } from './notes.js';
 import { detect, fetchInfo, buildPage, CHANNEL, resolveShare } from './video.js';
 import { parseWhen, twIso } from './when.js';
-import { aiTask, aiSuggest, aiNotice } from './ai.js';
+import { aiTask, aiSuggest, aiNotice, aiWriteNote, cleanNoteDraft } from './ai.js';
 
 
 const store = (env) => env.STORE.get(env.STORE.idFromName('main'));
@@ -118,6 +118,27 @@ export default {
           sections.push({ ...sec, preset: presetOf(sec), existing });
         }
         return json({ sections, video: video && detect(video) }, 200, h);
+      }
+      if (url.pathname === '/api/organize/ai' && req.method === 'POST') {
+        // AI 撰寫：照這一頁的範本格式寫一份草稿（不會直接存進 Notion，回給 APP 讓使用者確認）
+        const body = await readJson(req);
+        const item = await store(env).getOrganize(body?.id);
+        const pid = item && pageIdFromUrl(item.url);
+        if (!pid) return json({ error: '找不到這筆，可能已經超過 7 天' }, 404, h);
+        const [blocks, page] = await Promise.all([listChildren(env, pid), getPage(env, pid).catch(() => null)]);
+        const link = page?.properties?.['相關連結']?.url;
+        const video = link ? await resolveShare(detect(link)) : null;
+        const sections = outlineOf(blocks).map((s2) => ({ ...s2, preset: presetOf(s2) })).filter((s2) => !(/影片/.test(s2.text) && video));
+        if (!sections.length) sections.push({ id: '_free', text: '筆記', preset: null });
+        let caption = null;
+        if (video && video.platform !== 'YouTube') { try { caption = (await fetchInfo(video)).caption; } catch {} }
+        try {
+          const raw = await aiWriteNote(env, { title: item.title, video, caption, sections, hint: body.hint });
+          return json({ draft: cleanNoteDraft(raw, sections) }, 200, h);
+        } catch (e) {
+          if (e.kind) return json({ error: aiNotice(e) || 'AI 小幫手已關閉' }, 503, h);
+          throw e;
+        }
       }
       if (url.pathname === '/api/organize/note' && req.method === 'POST') {
         const body = await readJson(req);

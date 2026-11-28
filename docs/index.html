@@ -136,7 +136,18 @@
     <div class="sheet-head"><h2>📝 寫筆記</h2><button class="x" id="noteClose" type="button" aria-label="收起">✕</button></div>
     <div class="note-body">
     <a class="note-for" id="noteFor" href="#" target="_blank" rel="noopener"></a>
+    <div class="mode-seg" role="tablist">
+      <button type="button" class="segb on" id="modeManual">✍️ 手動撰寫</button>
+      <button type="button" class="segb" id="modeAi">✨ AI 撰寫</button>
+    </div>
     <div class="player" id="notePlayer" hidden></div>
+    <div class="ai-panel" id="aiPanel" hidden>
+      <p class="hint">AI 會看這部影片（IG／Threads 則讀貼文內文），照這一頁的範本格式寫一份草稿。寫好會切回手動模式讓你檢查、修改，<b>按「存起來」才會進 Notion</b>。</p>
+      <label class="note-sec"><div class="note-sec-head"><span>想讓 AI 特別注意什麼？（可以空白）</span><button type="button" class="mini-mic" id="aiHintMic">🎤</button></div>
+        <textarea id="aiHint" rows="3" placeholder="例如：多寫實作步驟、用條列、重點放在工具怎麼用"></textarea></label>
+      <button type="button" class="pill ai-go" id="aiGo">✨ 開始撰寫</button>
+      <p class="ai-status" id="aiStatus"></p>
+    </div>
     <div id="noteFields" class="note-fields"></div>
     <label class="note-sec" id="noteOther"><div class="note-sec-head"><span id="noteOtherLabel">筆記</span></div>
       <textarea id="noteText" rows="5" placeholder="看完有什麼重點、心得、想試的事？打字或按麥克風用說的。沒寫完關掉也會幫你留著草稿。"></textarea></label>

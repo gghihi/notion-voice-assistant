@@ -32,3 +32,16 @@ test('模型不接受「不思考」設定時，改用一般方式再試', async
   assert.deepEqual(await askGemini(env, 'x'), { ok: 1 });
   assert.deepEqual(seen, [true, false]);
 });
+
+import { cleanNoteDraft, aiWriteNote } from '../src/ai.js';
+test('AI 撰寫：YouTube 交給 Gemini 看影片、草稿只留正確格式', async () => {
+  let sent;
+  const env = { GEMINI_MODEL: 'm', GEMINI_PROXY: { fetch: async (u, init) => { sent = JSON.parse(init.body); return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify({ A: [{ title: '重點', subs: [{ title: '小', text: '內容' }] }, 'x'], B: [{ q: '問？', a: '答' }], C: { text: '心得' } }) }] } }] })); } } };
+  const secs = [{ id: 'A', text: '課程大綱', preset: 'point' }, { id: 'B', text: '重點回顧', preset: 'qa' }, { id: 'C', text: '總結', preset: null }];
+  const raw = await aiWriteNote(env, { title: 'T', video: { platform: 'YouTube', url: 'https://www.youtube.com/watch?v=abc' }, sections: secs });
+  assert.equal(sent.contents[0].parts[0].file_data.file_uri, 'https://www.youtube.com/watch?v=abc');
+  const d = cleanNoteDraft(raw, secs);
+  assert.equal(d.A.length, 1); assert.equal(d.A[0].subs[0].text, '內容');
+  assert.deepEqual(d.B[0], { kind: 'qa', q: '問？', a: '答', links: [] });
+  assert.deepEqual(d.C, { text: '心得' });
+});

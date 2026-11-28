@@ -162,6 +162,7 @@ async function openNote(it) {
   const box = $('noteFields'); box.innerHTML = '<p class="hint">讀取範本格式中…</p>';
   $('noteOtherLabel').textContent = '筆記';
   $('noteSheet').hidden = false; $('noteBg').hidden = false;
+  setMode(false); $('aiStatus').textContent = '';
   let video = null;
   try { const o = await api('/api/organize/outline?id=' + it.id); noteSections = o.sections; video = o.video; } catch { noteSections = []; }
   if (noteItem !== it) return;
@@ -199,6 +200,7 @@ async function openNote(it) {
   // 有範本格式就照格式寫，不另外放「其他補充」
   const hasSections = !!box.children.length;
   $('noteOther').hidden = hasSections; $('noteMic').hidden = hasSections;
+  if (hasDraft && !hasSections && d.other) $('noteText').value = d.other;
   if (hasSections) $('noteText').value = '';
   updateCount();
 }
@@ -285,6 +287,50 @@ function buildPreset(sec, kind) {
   wrap.append(head, list);
   return wrap;
 }
+
+// ===== 手動／AI 撰寫切換 =====
+function setMode(ai) {
+  $('modeAi').classList.toggle('on', ai); $('modeManual').classList.toggle('on', !ai);
+  $('aiPanel').hidden = !ai;
+  $('noteFields').hidden = ai;
+  if (ai) $('noteOther').hidden = true; else $('noteOther').hidden = !!$('noteFields').children.length;
+  $('noteMic').hidden = ai || !!$('noteFields').children.length;
+}
+$('modeManual').onclick = () => setMode(false);
+$('modeAi').onclick = () => { if (!aiEnabled()) return msg('AI 小幫手在設定裡關掉了，打開後才能用'); setMode(true); };
+bindMic($('aiHintMic'), $('aiHint'));
+$('aiGo').onclick = async () => {
+  if (!noteItem) return;
+  const it = noteItem;
+  $('aiGo').disabled = true;
+  const dots = ['看影片中', '整理重點中', '照範本排版中', '快好了'];
+  let k = 0; $('aiStatus').textContent = '✨ ' + dots[0] + '…（約 10～50 秒）';
+  const timer = setInterval(() => { k = Math.min(k + 1, dots.length - 1); $('aiStatus').textContent = '✨ ' + dots[k] + '…'; }, 9000);
+  try {
+    const { draft } = await api('/api/organize/ai', { id: it.id, hint: $('aiHint').value.trim() });
+    if (noteItem !== it) return;
+    // 把 AI 草稿加進筆記本（加在原本內容後面，不蓋掉你寫的），再切回手動模式
+    const sec = {};
+    document.querySelectorAll('#noteFields textarea[data-id]').forEach((t) => { sec[t.dataset.id] = t.value; });
+    let other = $('noteText').value;
+    let count = 0;
+    for (const [sid, v] of Object.entries(draft || {})) {
+      if (Array.isArray(v)) { (noteItems[sid] ||= []).push(...v); count += v.length; }
+      else if (v && v.text) {
+        if (sid === '_free') other = (other ? other + '\n\n' : '') + v.text;
+        else sec[sid] = (sec[sid] ? sec[sid] + '\n\n' : '') + v.text;
+        count++;
+      }
+    }
+    if (!count) { $('aiStatus').textContent = '🤖 AI 沒寫出內容，可以換個說法再試，或改用手動'; return; }
+    try { localStorage.setItem(draftKey(it.id), JSON.stringify({ edited: true, other, sec, items: noteItems })); } catch {}
+    $('aiStatus').textContent = '';
+    await openNote(it); // 用剛剛的草稿重新排版
+    setMode(false);
+    msg('✨ AI 寫好草稿了，看一下、改一改，再按「存起來」');
+  } catch (e) { $('aiStatus').textContent = '🤖 ' + e.message; }
+  finally { clearInterval(timer); $('aiGo').disabled = false; }
+};
 
 function closeNote() { $('noteSheet').hidden = true; $('noteBg').hidden = true; noteItem = null; $('notePlayer').innerHTML = ''; } // 關掉就停止播放
 // 影片網址 → 可以嵌入播放的網址（只接受這三個平台）

@@ -277,3 +277,11 @@ body[data-tab="org"] { --accent:var(--c-blue); --accent-soft:var(--c-blue-bg); }
 .preset-card.saved { border-style:solid; }
 .preset-card.saved::after { content:"已存"; position:absolute; top:-9px; left:12px; padding:0 6px; font-size:11px; font-weight:900; background:var(--paper); border:1.5px solid var(--ink); border-radius:999px; }
 .preset-card.locked { background:var(--soft); }
+/* 手動／AI 撰寫切換 */
+.mode-seg { display:flex; margin:0 0 12px; border:2.5px solid var(--ink); border-radius:999px; overflow:hidden; box-shadow:var(--shadow-sm); }
+.mode-seg button { flex:1; border:0; padding:9px 6px; background:var(--paper); color:var(--text); font-weight:900; font-size:15px; }
+.mode-seg button + button { border-left:2.5px solid var(--ink); }
+.mode-seg button.on { background:var(--yellow); color:#111; }
+.ai-panel { display:grid; gap:12px; }
+.ai-go { padding:12px; font-size:16px; }
+.ai-status { margin:0; font-weight:800; min-height:1.4em; }
