@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://*.workers.dev http://localhost:8787; img-src 'self' data: https://i.ytimg.com https://*.cdninstagram.com https://*.fbcdn.net">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://*.workers.dev http://localhost:8787; frame-src https://www.youtube-nocookie.com https://www.youtube.com https://www.instagram.com https://www.threads.com https://www.threads.net; img-src 'self' data: https://i.ytimg.com https://*.cdninstagram.com https://*.fbcdn.net">
 <meta name="referrer" content="no-referrer">
 <title>Notion 請助手🫰</title>
 <script src="theme.js"></script>
@@ -135,11 +135,12 @@
   <section class="sheet" id="noteSheet" hidden aria-label="寫筆記">
     <div class="sheet-head"><h2>📝 寫筆記</h2><button class="x" id="noteClose" type="button" aria-label="收起">✕</button></div>
     <a class="note-for" id="noteFor" href="#" target="_blank" rel="noopener"></a>
+    <div class="player" id="notePlayer" hidden></div>
     <div id="noteFields" class="note-fields"></div>
-    <label class="note-sec"><div class="note-sec-head"><span id="noteOtherLabel">筆記</span></div>
+    <label class="note-sec" id="noteOther"><div class="note-sec-head"><span id="noteOtherLabel">筆記</span></div>
       <textarea id="noteText" rows="5" placeholder="看完有什麼重點、心得、想試的事？打字或按麥克風用說的。沒寫完關掉也會幫你留著草稿。"></textarea></label>
     <div class="row">
-      <button class="ghost mic" data-for="noteText" type="button">🎤 說話</button>
+      <button class="ghost mic" data-for="noteText" type="button" id="noteMic">🎤 說話</button>
       <span class="note-count" id="noteCount">0 字</span>
     </div>
     <div class="note-actions">

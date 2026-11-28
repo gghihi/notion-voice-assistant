@@ -107,7 +107,9 @@ export default {
         const item = await store(env).getOrganize(url.searchParams.get('id'));
         const pid = item && pageIdFromUrl(item.url);
         if (!pid) return json({ error: '找不到這筆，可能已經超過 7 天' }, 404, h);
-        return json({ sections: outlineOf(await listChildren(env, pid)) }, 200, h);
+        const [blocks, page] = await Promise.all([listChildren(env, pid), getPage(env, pid).catch(() => null)]);
+        const video = page?.properties?.['相關連結']?.url || null;
+        return json({ sections: outlineOf(blocks), video: video && detect(video) }, 200, h);
       }
       if (url.pathname === '/api/organize/note' && req.method === 'POST') {
         const body = await readJson(req);

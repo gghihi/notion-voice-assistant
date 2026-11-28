@@ -154,10 +154,17 @@ async function openNote(it) {
   const box = $('noteFields'); box.innerHTML = '<p class="hint">讀取範本格式中…</p>';
   $('noteOtherLabel').textContent = '筆記';
   $('noteSheet').hidden = false; $('noteBg').hidden = false;
-  try { noteSections = (await api('/api/organize/outline?id=' + it.id)).sections; } catch { noteSections = []; }
+  let video = null;
+  try { const o = await api('/api/organize/outline?id=' + it.id); noteSections = o.sections; video = o.video; } catch { noteSections = []; }
   if (noteItem !== it) return;
+  // 影片放在筆記本最上面，邊看邊寫（往下捲也會黏在上方）
+  const src = embedSrc(video);
+  $('notePlayer').hidden = !src;
+  $('notePlayer').innerHTML = src ? `<iframe src="${src}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" title="影片"></iframe>` : '';
+  if (video?.platform === 'IG' || video?.platform === 'Threads') $('notePlayer').classList.add('tall'); else $('notePlayer').classList.remove('tall');
   box.innerHTML = '';
   for (const sec of noteSections) {
+    if (/影片/.test(sec.text) && src) continue; // 「課程影片」那一段就用上面的播放器，不用再寫
     const wrap = document.createElement('label'); wrap.className = 'note-sec';
     const head = document.createElement('div'); head.className = 'note-sec-head';
     const name = document.createElement('span'); name.textContent = sec.text;
@@ -167,10 +174,21 @@ async function openNote(it) {
     bindMic(mic, ta);
     head.append(name, mic); wrap.append(head, ta); box.append(wrap);
   }
-  $('noteOtherLabel').textContent = noteSections.length ? '其他補充（加在頁面最後面）' : '筆記';
+  // 有範本格式就照格式寫，不另外放「其他補充」
+  const hasSections = !!box.querySelector('textarea');
+  $('noteOther').hidden = hasSections; $('noteMic').hidden = hasSections;
+  if (hasSections) $('noteText').value = '';
   saveDraft();
 }
-function closeNote() { $('noteSheet').hidden = true; $('noteBg').hidden = true; noteItem = null; }
+function closeNote() { $('noteSheet').hidden = true; $('noteBg').hidden = true; noteItem = null; $('notePlayer').innerHTML = ''; } // 關掉就停止播放
+// 影片網址 → 可以嵌入播放的網址（只接受這三個平台）
+function embedSrc(v) {
+  if (!v || !v.id || !/^[\w-]+$/.test(v.id)) return null;
+  if (v.platform === 'YouTube') return `https://www.youtube-nocookie.com/embed/${v.id}?playsinline=1&rel=0`;
+  if (v.platform === 'IG') { const m = (v.url || '').match(/instagram\.com\/(p|reel|tv)\/([\w-]+)/); return m ? `https://www.instagram.com/${m[1]}/${m[2]}/embed/` : null; }
+  if (v.platform === 'Threads' && !v.share) { const m = (v.url || '').match(/threads\.com\/(@[\w.]+)\/post\/([\w-]+)/); return m ? `https://www.threads.com/${m[1]}/post/${m[2]}/embed` : null; }
+  return null;
+}
 $('noteText').addEventListener('input', saveDraft);
 $('noteClose').onclick = closeNote; $('noteBg').onclick = closeNote;
 async function saveNote(markDone) {
