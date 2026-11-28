@@ -1,5 +1,7 @@
 // 影片存入知識庫：先抓標題、頻道、縮圖、上傳日期，再建立 Notion 頁面。
 // 抓不到的資料一律留空，不亂猜。
+// 「課堂筆記通路」欄位裡的選項名稱
+export const CHANNEL = { YouTube: 'YouTube', IG: 'IG', Threads: 'threads' };
 export const KINDS = ['書', '電影', '哲學＆定理＆心理', '課堂筆記', '短影片', '冷知識'];
 
 /** 判斷是哪個平台，並整理成乾淨的網址；不是 YouTube／IG 就回傳 null */
@@ -21,6 +23,10 @@ export function detect(raw) {
   if (host === 'instagram.com') {
     const p = u.pathname.match(/^\/(?:[\w.]+\/)?(p|reel|reels|tv)\/([\w-]+)/);
     if (p) return { platform: 'IG', id: p[2], url: `https://www.instagram.com/${p[1] === 'reels' ? 'reel' : p[1]}/${p[2]}/` };
+  }
+  if (host === 'threads.net' || host === 'threads.com') {
+    const t = u.pathname.match(/^\/(@[\w.]+)\/post\/([\w-]+)/);
+    if (t) return { platform: 'Threads', id: t[2], url: `https://www.threads.com/${t[1]}/post/${t[2]}` };
   }
   return null;
 }
@@ -50,6 +56,18 @@ export async function fetchInfo(v, fetchImpl = fetch) {
       info.uploadDate = (meta(html, 'uploadDate') || (html.match(/"(?:uploadDate|publishDate)":"(\d{4}-\d{2}-\d{2})/) || [])[1] || '').slice(0, 10) || null;
       info.title ||= meta(html, 'og:title');
     } catch {}
+  } else if (v.platform === 'Threads') {
+    try {
+      const html = await getText(v.url, fetchImpl);
+      // og:title 例如「AI 主理人 (@be.ai.curator) on Threads」；og:description 是貼文內容
+      const ogTitle = decode(meta(html, 'og:title') || '');
+      const by = ogTitle.match(/^(.+?)\s*[(（]@/) || ogTitle.match(/^(.+?)\s*(?:on|在)\s*Threads/i);
+      info.author = by ? by[1].trim() : (v.url.match(/@([\w.]+)/) || [])[1] || null;
+      info.thumbnail = meta(html, 'og:image');
+      const text = meta(html, 'og:description');
+      if (text) { info.caption = text.slice(0, 1500); info.title = text.split('\n')[0].slice(0, 150); }
+    } catch {}
+    if (!info.author) info.author = (v.url.match(/@([\w.]+)/) || [])[1] || null;
   } else {
     try {
       const html = await getText(v.url, fetchImpl);
@@ -90,11 +108,11 @@ export async function fetchInfo(v, fetchImpl = fetch) {
 
 /** 組出 Notion 頁面內容 */
 export function buildPage(env, v, info, kind) {
-  const title = info.title || (v.platform === 'IG' ? 'Instagram 影片' : 'YouTube 影片');
+  const title = info.title || { IG: 'Instagram 影片', Threads: 'Threads 貼文', YouTube: 'YouTube 影片' }[v.platform];
   const props = {
     Name: { title: [{ type: 'text', text: { content: title.slice(0, 200) } }] },
     相關連結: { url: v.url },
-    課堂筆記通路: { select: { name: v.platform === 'IG' ? 'IG' : 'YouTube' } },
+    課堂筆記通路: { select: { name: CHANNEL[v.platform] } },
     觀看性質: { select: { name: '想看' } },
     知識庫性質: { select: { name: KINDS.includes(kind) ? kind : '課堂筆記' } },
   };

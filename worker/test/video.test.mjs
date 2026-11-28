@@ -56,3 +56,15 @@ test('內文不會存進 Notion 頁面', () => {
   const p = buildPage({ KNOWLEDGE_DS: 'ds' }, detect('https://www.instagram.com/reel/X1/'), { title: 'T', caption: '很長的內文' }, '課堂筆記');
   assert.equal(JSON.stringify(p.children).includes('很長的內文'), false);
 });
+
+test('Threads 貼文', async () => {
+  const v = detect('https://www.threads.net/@be.ai.curator/post/DAbc123xyz?xmt=1');
+  assert.equal(v.platform, 'Threads');
+  assert.equal(v.url, 'https://www.threads.com/@be.ai.curator/post/DAbc123xyz');
+  const fake = async () => ({ ok: true, text: async () => '<meta property="og:title" content="AI 主理人 (&#064;be.ai.curator) on Threads"><meta property="og:description" content="五個 AI 證照比較\n第二行">' });
+  const info = await fetchInfo(v, fake);
+  assert.equal(info.author, 'AI 主理人'); assert.equal(info.title, '五個 AI 證照比較');
+  const p = buildPage({ KNOWLEDGE_DS: 'ds' }, v, info, '課堂筆記');
+  assert.equal(p.properties.課堂筆記通路.select.name, 'threads');
+  assert.equal(JSON.stringify(p.children).includes('第二行'), false);
+});

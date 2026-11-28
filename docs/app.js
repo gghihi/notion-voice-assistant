@@ -367,7 +367,7 @@ $('videoPreviewBtn').onclick = async () => {
     const shownTitle = $('videoTitle').value;
     aiSuggest('knowledge', [r.title && '標題：' + r.title, r.author && '頻道：' + r.author, r.platform, r.caption && '內文：' + r.caption].filter(Boolean).join('\n'),
       (t) => { if ($('videoTitle').value === shownTitle) $('videoTitle').value = t; }, !!r.caption);
-    msg(r.title ? '選好欄位後按「確認送出」' : '抓不到標題（IG 常擋），可以自己填，或直接存');
+    msg(r.title ? '選好欄位後按「確認送出」' : '抓不到標題（IG／Threads 常擋），可以自己填，或直接存');
   } catch (e) { msg(e.message); }
 };
 // 影片自動抓到的資料：蓋過範本預設；抓不到的就保留範本的值
@@ -377,7 +377,7 @@ function fillVideoAuto() {
   const kp = panel('knowledge');
   if (r.author) kp.set('作者', [r.author.replace(/,/g, ' ')]); // 影片發布者（已有標籤就選到，新的會自動新增）
   if (r.uploadDate) kp.set('上傳日期', r.uploadDate);
-  kp.set('課堂筆記通路', r.platform === 'IG' ? 'IG' : 'YouTube');
+  kp.set('課堂筆記通路', r.channel || (r.platform === 'IG' ? 'IG' : 'YouTube'));
   kp.set('相關連結', r.url);
 }
 
