@@ -374,7 +374,7 @@ function imageList(holder) {
   const box = document.createElement('div'); box.className = 'imgs';
   holder.images.forEach((im, k) => {
     const fig = document.createElement('figure'); fig.className = 'img-item';
-    const pic = document.createElement('img'); pic.src = im.data || ''; pic.alt = '';
+    const pic = document.createElement('img'); pic.src = im.data || im.preview || ''; pic.alt = ''; // 已存的圖片用 Notion 的預覽網址
     fig.append(pic);
     const cap = field('input', '圖片說明（可空白）', im.caption, (v) => { im.caption = v; });
     fig.append(cap, smallBtn('✕', () => { holder.images.splice(k, 1); saveDraft(); renderFields(currentSecVals()); }, 'del-mini'));
@@ -760,7 +760,7 @@ async function saveNote(markDone) {
     // 先把新圖片上傳到 Notion，再送出筆記
     const pics = Object.values(items).flat().flatMap((x) => [x, ...(x.subs || [])]).flatMap((h) => h.images || []).filter((im) => im.data && !im.uploadId);
     for (const [k, im] of pics.entries()) { msg(`上傳圖片 ${k + 1}/${pics.length}…`); im.uploadId = (await api('/api/upload', { dataUrl: im.data })).uploadId; }
-    for (const list of Object.values(items)) for (const x of list) for (const h of [x, ...(x.subs || [])]) if (h.images) h.images = h.images.map((im) => ({ uploadId: im.uploadId, caption: im.caption, link: im.link }));
+    for (const list of Object.values(items)) for (const x of list) for (const h of [x, ...(x.subs || [])]) if (h.images) h.images = h.images.map((im) => (im.blockId && !im.data ? { blockId: im.blockId, caption: im.caption } : { uploadId: im.uploadId, caption: im.caption }));
     let r = { status: markDone ? 'done' : it.status };
     if (changed) r = await api('/api/organize/note', { id: it.id, text, sections, plain, items, deleted, reorder, markDone });
     else await api('/api/organize/status', { id: it.id, status: 'done' });

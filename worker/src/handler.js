@@ -1,9 +1,9 @@
 // 後端入口：只開放少數幾個網址，每個（除了登入）都要有效通行證。
 import { checkPassword, issueToken, verifyToken } from './auth.js';
-import { checkDataSources, createNote, createTask, createPage, listTemplates, createPageWithTemplate, getDataSource, searchPages, getPage, pageTitle, pageIdFromUrl, trashPage, updatePageProps, appendBlocks, paragraphs, uploadImage, listChildren, insertAfter, outlineOf, sectionEnd, sectionAnchor, itemBlocks } from './notion.js';
+import { checkDataSources, createNote, createTask, createPage, listTemplates, createPageWithTemplate, getDataSource, searchPages, getPage, pageTitle, pageIdFromUrl, trashPage, updatePageProps, appendBlocks, paragraphs, uploadImage, listChildren, insertAfter, outlineOf, sectionEnd, sectionAnchor, itemBlocks, getBlock } from './notion.js';
 import { DBS, describe, toNotionProps, fromNotionProps } from './fields.js';
 import { STATUS_TO_NOTION } from './organize.js';
-import { readSection, saveSectionItems, savePlain, presetOf } from './notes.js';
+import { readSection, saveSectionItems, savePlain, presetOf, resolveExistingImages, sectionRange } from './notes.js';
 import { detect, fetchInfo, buildPage, CHANNEL, resolveShare } from './video.js';
 import { parseWhen, twIso } from './when.js';
 import { aiTask, aiSuggest, aiNotice, aiWriteNote, cleanNoteDraft } from './ai.js';
@@ -173,6 +173,12 @@ export default {
             const sec = outline.find((o) => o.id === sid);
             if (!sec) continue;
             const list = (items.find(([k]) => k === sid) || [, []])[1];
+            // 改到含圖片的項目：先把原本的圖片重新上傳一份，改寫後才不會不見
+            const allowed = new Set(sectionRange(blocks, sid).map((b) => b.id));
+            for (const it of list) if (it.bid && allowed.has(it.bid)) { const kids = await listChildren(env, it.bid).catch(() => []); kids.forEach((k) => allowed.add(k.id)); allowed.add(it.bid); }
+            const isReorder = Array.isArray(body.reorder) && body.reorder.includes(sid);
+            if (isReorder) list.forEach((it) => { it.__reorder = true; });
+            await resolveExistingImages(env, list, allowed, { getBlock, uploadImage });
             if (sec.toggle) { const nb = itemBlocks(list.filter((x) => !x.bid)); if (nb.length) await appendBlocks(env, sid, nb); }
             else await saveSectionItems(env, pid, blocks, sec, list, Array.isArray(deleted[sid]) ? deleted[sid] : [], Array.isArray(body.reorder) && body.reorder.includes(sid));
             blocks = await listChildren(env, pid);

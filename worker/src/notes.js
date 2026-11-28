@@ -23,11 +23,14 @@ const TEXT_TYPES = ['paragraph', 'bulleted_list_item', 'numbered_list_item'];
 /** 讀一個區塊的子內容 → { text, code, lang, links, locked }（有 APP 不認得的內容就 locked，避免改壞） */
 async function readKids(env, id) {
   const kids = await listChildren(env, id);
-  const r = { text: [], ids: [], code: undefined, lang: 'xml', links: [], locked: false };
+  const r = { text: [], ids: [], code: undefined, lang: 'xml', links: [], images: [], locked: false };
   for (const k of kids) {
     if (TEXT_TYPES.includes(k.type) && !k.has_children) { r.text.push(plain(k[k.type].rich_text)); r.ids.push(k.id); }
     else if (k.type === 'code' && r.code === undefined) { r.code = plain(k.code.rich_text); r.lang = k.code.language; }
     else if (k.type === 'bookmark' && k.bookmark?.url) r.links.push(k.bookmark.url);
+    else if (k.type === 'image') { // 圖片：記下區塊編號，修改時後端會重新上傳一份
+      const im = k.image; r.images.push({ blockId: k.id, preview: im?.file?.url || im?.external?.url || '', caption: plain(im?.caption) });
+    }
     else r.locked = true;
   }
   return { ...r, text: r.text.join('\n') };
@@ -46,7 +49,7 @@ export async function readSection(env, blocks, sec) {
         if (k.type === 'heading_3' && k.heading_3.is_toggleable) {
           const r = k.has_children ? await readKids(env, k.id) : { text: '', links: [], locked: false };
           if (r.locked) locked = true;
-          const sub = { title: plain(k.heading_3.rich_text), text: r.text, links: r.links };
+          const sub = { title: plain(k.heading_3.rich_text), text: r.text, links: r.links, images: r.images };
           if (r.code !== undefined) { sub.code = r.code; sub.lang = r.lang; }
           subs.push(sub);
         } else if (k.type !== 'unsupported' && k.type !== 'button') locked = true; // 按鈕（副重點按鈕）可以忽略
@@ -59,7 +62,7 @@ export async function readSection(env, blocks, sec) {
     const items = [];
     for (const b of range.filter((x) => x.type === 'toggle')) {
       const r = b.has_children ? await readKids(env, b.id) : { text: '', links: [], locked: false };
-      items.push({ bid: b.id, kind: 'qa', q: plain(b.toggle.rich_text), a: r.text, links: r.links, locked: r.locked });
+      items.push({ bid: b.id, kind: 'qa', q: plain(b.toggle.rich_text), a: r.text, links: r.links, images: r.images || [], locked: r.locked });
     }
     return { preset, items };
   }
@@ -124,4 +127,36 @@ export async function savePlain(env, pid, blocks, sec, text, oldIds) {
   if (!kids.length) return;
   if (prev) await insertAfter(env, pid, prev, kids);
   else await insertAfter(env, pid, sectionEnd(await listChildren(env, pid), sec.id), kids);
+}
+
+/**
+ * 修改含圖片的項目前：把「原本就在 Notion 的圖片」（只給 blockId）換成可以重新放進去的內容。
+ * 只接受這一段裡項目底下的圖片（往上找兩層，要是這一段的重點或問題）。
+ */
+export async function resolveExistingImages(env, list, allowedIds, { getBlock, uploadImage }) {
+  for (const it of list) {
+    if (!it.bid || !(it.dirty || it.__reorder)) continue;
+    const holders = [it, ...(it.subs || [])];
+    for (const h of holders) {
+      if (!Array.isArray(h.images)) continue;
+      const out = [];
+      for (const im of h.images) {
+        if (!im?.blockId) { out.push(im); continue; }
+        try {
+          const b = await getBlock(env, im.blockId);
+          if (b.type !== 'image') continue;
+          let p = b.parent?.block_id, ok = allowedIds.has(p);
+          if (!ok && p) { const pb = await getBlock(env, p); ok = allowedIds.has(pb.parent?.block_id); }
+          if (!ok) continue; // 不是這一段的圖片，不處理
+          if (b.image.type === 'external') { out.push({ external: b.image.external.url, caption: im.caption }); continue; }
+          const res = await fetch(b.image.file.url);
+          if (!res.ok) continue;
+          const type = res.headers.get('Content-Type') || 'image/jpeg';
+          const id = await uploadImage(env, new Uint8Array(await res.arrayBuffer()), type.split(';')[0], 'note-image.' + (type.includes('png') ? 'png' : 'jpg'));
+          out.push({ uploadId: id, caption: im.caption });
+        } catch (e) { console.log('image copy', e.message); }
+      }
+      h.images = out;
+    }
+  }
 }

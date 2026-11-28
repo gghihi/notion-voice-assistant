@@ -227,7 +227,7 @@ const bookmarks = (links) => (Array.isArray(links) ? links : []).filter((u) => t
 // 圖片（已上傳到 Notion 的 file_upload 編號）
 const UUID = /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i;
 const YT_LINK = /^https:\/\/(www\.)?(youtube\.com|youtu\.be)\/[^\s]*$/;
-const images = (list) => (Array.isArray(list) ? list : []).filter((im) => im && UUID.test(im.uploadId || '')).slice(0, 10).map((im) => {
+const images = (list) => (Array.isArray(list) ? list : []).filter((im) => im && (UUID.test(im.uploadId || '') || /^https:\/\//.test(im.external || ''))).slice(0, 10).map((im) => {
   // 說明：影片時間點連結（像 YouTube「從這個時間點分享」）＋ 自己寫的說明
   const cap = [];
   if (typeof im.link === 'string' && YT_LINK.test(im.link)) {
@@ -235,6 +235,7 @@ const images = (list) => (Array.isArray(list) ? list : []).filter((im) => im && 
     cap.push({ type: 'text', text: { content: `▶ ${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`, link: { url: im.link } } });
   }
   if (im.caption) cap.push({ type: 'text', text: { content: (cap.length ? '　' : '') + String(im.caption).slice(0, 300) } });
+  if (im.external) return { object: 'block', type: 'image', image: { type: 'external', external: { url: im.external }, caption: cap } };
   return { object: 'block', type: 'image', image: { type: 'file_upload', file_upload: { id: im.uploadId }, caption: cap } };
 });
 const rt = (s) => (s ? [{ type: 'text', text: { content: String(s).slice(0, 2000) } }] : []);
@@ -279,3 +280,5 @@ export async function uploadImage(env, bytes, contentType, filename) {
   if (!res.ok) { const e = new Error('notion_' + res.status); e.status = res.status; throw e; }
   return up.id;
 }
+
+export async function getBlock(env, id) { return call(env, '/blocks/' + id); }
