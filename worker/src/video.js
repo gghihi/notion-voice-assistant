@@ -57,10 +57,12 @@ export async function fetchInfo(v, fetchImpl = fetch) {
       info.thumbnail = meta(html, 'og:image');
       const desc = meta(html, 'og:description') || '';
       // IG 的 og:title 常是「某某 on Instagram: "內容"」
-      const by = (ogTitle || '').match(/^(.+?) (?:on|在) Instagram/) || desc.match(/- ([\w.]+) (?:on|在)/);
+      // 發布者：og:title 開頭「AI 主理人在 Instagram: …」或「Name on Instagram: …」
+      const by = (ogTitle || '').match(/^(.+?)\s*(?:on|在)\s*Instagram/i) || desc.match(/-\s*([\w.]+)\s*(?:on|在)\s/);
       info.author = by ? by[1].trim() : null;
-      const said = (ogTitle || '').match(/Instagram[:：]\s*["“](.+?)["”]?$/);
-      info.title = (said ? said[1] : ogTitle)?.slice(0, 150) || null;
+      const said = (ogTitle || '').match(/Instagram[:：]\s*["“]([\s\S]+?)["”]?\s*$/);
+      // 標題先用內文第一句（之後 AI 會依整段內文改寫）
+      info.title = (said ? said[1].split('\n')[0] : ogTitle)?.slice(0, 150) || null;
       const d = desc.match(/(\w+ \d{1,2}, \d{4})/);
       if (d) { const t = new Date(d[1] + ' UTC'); if (!isNaN(t)) info.uploadDate = t.toISOString().slice(0, 10); }
       // 內文：og:description 通常是「… on Instagram: "內文"」
@@ -78,16 +80,6 @@ export async function fetchInfo(v, fetchImpl = fetch) {
         const user = html.match(/class="UsernameText"[^>]*>([^<]+)</);
         if (user && !info.author) info.author = decode(user[1]).trim();
         if (!info.thumbnail) { const img = html.match(/class="EmbeddedMediaImage"[^>]+src="([^"]+)"/); if (img) info.thumbnail = decode(img[1]); }
-      } catch {}
-    }
-    // 作者：IG 帳號（@名稱）之外，再去他的主頁抓「顯示名稱」（例如 be.ai.curator → AI 主理人）
-    info.handle = info.author && /^[\w.]+$/.test(info.author) ? info.author : null;
-    if (info.handle) {
-      try {
-        const html = await getText(`https://www.instagram.com/${info.handle}/`, fetchImpl);
-        const t = meta(html, 'og:title') || (html.match(/<title>([^<]+)<\/title>/) || [])[1] || '';
-        const name = decode(t).match(/^(.+?)\s*[(（]@/);
-        if (name && name[1].trim() && name[1].trim() !== info.handle) info.displayName = name[1].trim().slice(0, 100);
       } catch {}
     }
     if (info.caption) info.caption = info.caption.replace(/\s+\n/g, '\n').slice(0, 1500);

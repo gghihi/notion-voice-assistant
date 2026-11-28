@@ -37,11 +37,17 @@ test('Notion 頁面欄位', () => {
 test('IG 內文：主頁拿不到時改用嵌入頁', async () => {
   const fake = async (u) => u.includes('embed/captioned')
     ? { ok: true, text: async () => '<div class="Caption"><a class="CaptionUsername" href="#">be.ai.curator</a><br>你用 AI 做的網站，駭客會先試這 12 招。<br><br>#AI主理人<div class="CaptionComments"></div></div><span class="UsernameText">be.ai.curator</span>' }
-    : u === 'https://www.instagram.com/be.ai.curator/' ? { ok: true, text: async () => '<meta property="og:title" content="AI 主理人 (&#064;be.ai.curator) &#x2022; Instagram">' }
     : { ok: false, status: 429 };
   const info = await fetchInfo(detect('https://www.instagram.com/reel/DgQOIszJpRL/?evlk=1'), fake);
-  assert.equal(info.displayName, 'AI 主理人');
   assert.match(info.caption, /駭客會先試這 12 招/);
   assert.doesNotMatch(info.caption, /be\.ai\.curator/);
   assert.equal(info.author, 'be.ai.curator');
+});
+
+test('IG 發布者：中文「在 Instagram」也抓得到', async () => {
+  const fake = async (u) => u.includes('embed') ? { ok: false, status: 429 }
+    : { ok: true, text: async () => '<meta property="og:title" content="AI 主理人在 Instagram: &quot;你用 AI 做的網站，駭客會先試這 12 招。\n在網址後面加個 admin">' };
+  const info = await fetchInfo(detect('https://www.instagram.com/reel/X1/'), fake);
+  assert.equal(info.author, 'AI 主理人');
+  assert.equal(info.title, '你用 AI 做的網站，駭客會先試這 12 招。');
 });
