@@ -350,3 +350,15 @@ body[data-tab="org"] { --accent:var(--c-blue); --accent-soft:var(--c-blue-bg); }
 #noteSheet .player { width:min(100%, 450px); }
 #noteSheet .player.tall { height:min(45vh, 390px); width:min(90%, 300px); }
 .time-link { display:block; padding:6px 10px; border:1.5px solid var(--ink); border-radius:8px; background:var(--c-blue-bg); color:var(--c-blue); font-size:13px; font-weight:800; text-decoration:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+/* 手動裁切 */
+.cropper { position:fixed; inset:0; z-index:120; display:flex; flex-direction:column; background:#111; color:#fff; }
+.crop-head { padding:calc(12px + env(safe-area-inset-top)) 16px 10px; text-align:center; }
+.crop-stage { position:relative; flex:1; display:flex; align-items:center; justify-content:center; overflow:hidden; padding:12px; touch-action:none; }
+.crop-stage img { max-width:100%; max-height:100%; user-select:none; -webkit-user-drag:none; }
+.crop-box { position:absolute; border:2px solid var(--yellow); box-shadow:0 0 0 9999px rgba(0,0,0,.55); touch-action:none; cursor:move; }
+.crop-box i { position:absolute; width:26px; height:26px; background:var(--yellow); border:2px solid #111; border-radius:50%; }
+.crop-box i[data-h="nw"] { left:-13px; top:-13px; } .crop-box i[data-h="ne"] { right:-13px; top:-13px; }
+.crop-box i[data-h="sw"] { left:-13px; bottom:-13px; } .crop-box i[data-h="se"] { right:-13px; bottom:-13px; }
+.crop-actions { display:grid; grid-template-columns:1fr 1fr 1.4fr; gap:10px; padding:12px 16px calc(14px + env(safe-area-inset-bottom)); }
+.crop-actions .pill { padding:11px 6px; }
+.crop-btn { justify-self:start; }

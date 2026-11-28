@@ -175,6 +175,15 @@
       <button class="pill" id="noteSaveDone" type="button">存起來並完成 ✅</button>
     </div>
   </section>
+  <section class="cropper" id="cropper" hidden aria-label="裁切圖片">
+    <div class="crop-head"><b>✂️ 拖拉方框，選要保留的範圍</b></div>
+    <div class="crop-stage" id="cropStage"><img id="cropImg" alt=""><div class="crop-box" id="cropBox"><i data-h="nw"></i><i data-h="ne"></i><i data-h="sw"></i><i data-h="se"></i></div></div>
+    <div class="crop-actions">
+      <button type="button" class="pill danger" id="cropCancel">取消</button>
+      <button type="button" class="pill danger" id="cropReset">整張</button>
+      <button type="button" class="pill" id="cropOk">✂️ 裁好了</button>
+    </div>
+  </section>
   <div class="sheet-bg" id="delBg" hidden></div>
   <section class="ask" id="del" hidden role="dialog" aria-label="刪除">
     <div class="ask-emoji">🗑️</div>

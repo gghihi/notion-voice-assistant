@@ -325,7 +325,25 @@ function findVideoBox(img) {
   const box = { x: Math.floor(left * k), y: Math.floor(top * k), w: Math.ceil((right - left + 1) * k), h: Math.ceil((bottom - top + 1) * k) };
   return box.w * box.h > img.width * img.height * 0.92 ? null : box; // 幾乎整張都是畫面就不用裁
 }
-function compressImage(file, crop = false) { // 縮到最長 1600px、轉成 JPEG，上傳比較快；crop＝自動裁掉黑邊和播放器介面
+// 把整張圖縮成最長 1600px 的 JPEG（保留下來，之後可以重新裁切）
+function toJpeg(img, b = { x: 0, y: 0, w: img.width, h: img.height }, max = 1600) {
+  const k = Math.min(1, max / Math.max(b.w, b.h));
+  const c = document.createElement('canvas'); c.width = Math.round(b.w * k); c.height = Math.round(b.h * k);
+  c.getContext('2d').drawImage(img, b.x, b.y, b.w, b.h, 0, 0, c.width, c.height);
+  return c.toDataURL('image/jpeg', 0.85);
+}
+function loadImg(src) { return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('讀不到這張圖片')); i.src = src; }); }
+// 回傳 { data: 裁好的圖, orig: 原圖, found: 有沒有自動找到影片範圍 }
+async function prepareImage(file, crop) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await loadImg(url);
+    const orig = toJpeg(img, undefined, 2000);
+    const box = crop ? findVideoBox(img) : null;
+    return { data: box ? toJpeg(img, box) : toJpeg(img), orig, found: !!box };
+  } finally { URL.revokeObjectURL(url); }
+}
+function compressImage(file, crop = false) { // 舊的寫法（保留給其他地方用）
   return new Promise((resolve, reject) => {
     const img = new Image(); const url = URL.createObjectURL(file);
     img.onload = () => {
@@ -342,9 +360,12 @@ function compressImage(file, crop = false) { // 縮到最長 1600px、轉成 JPE
 async function addImageTo(holder, file, extra = {}) {
   if (!holder) return msg('先點一下要放圖片的那一格（小重點或一般問題）');
   try {
-    const data = await compressImage(file, !!extra.crop);
-    (holder.images ||= []).push({ data, caption: extra.caption || '', link: extra.link || '' });
-    saveDraft(); renderFields(currentSecVals()); msg('🖼️ 圖片放進去了');
+    const { data, orig, found } = await prepareImage(file, !!extra.crop);
+    const im = { data, orig, caption: extra.caption || '', link: extra.link || '' };
+    (holder.images ||= []).push(im);
+    saveDraft(); renderFields(currentSecVals());
+    if (extra.crop && !found) { msg('找不到影片範圍，請自己框選'); openCropper(im); } // 自動抓不到才手動裁
+    else msg(extra.crop ? '🖼️ 已自動裁好放進去了' : '🖼️ 圖片放進去了');
   } catch (e) { msg(e.message); }
 }
 function currentSecVals() { const v = {}; document.querySelectorAll('#noteFields textarea[data-id]').forEach((t) => { v[t.dataset.id] = t.value; }); return v; }
@@ -365,6 +386,7 @@ function imageList(holder) {
     }
     const cap = field('input', '圖片說明（可空白）', im.caption, (v) => { im.caption = v; });
     fig.append(cap, smallBtn('✕', () => { holder.images.splice(k, 1); saveDraft(); renderFields(currentSecVals()); }, 'del-mini'));
+    if (im.data) fig.append(smallBtn('✂️ 裁切', () => openCropper(im), 'add-btn tiny crop-btn'));
     box.append(fig);
   });
   box.append(smallBtn('＋ 圖片', () => { curTarget = holder; pendingExtra = {}; $('imgPick').click(); }, 'add-btn tiny'));
@@ -404,6 +426,54 @@ function fallbackTarget() {
   const qa = all.filter((x) => x.kind === 'qa');
   return qa.length ? qa[qa.length - 1] : null;
 }
+
+// ===== 手動裁切 =====
+let cropTarget = null, cropRect = null; // cropRect：以畫面上圖片的比例（0～1）記錄
+function openCropper(im) {
+  cropTarget = im;
+  $('cropImg').src = im.orig || im.data;
+  cropRect = { x: 0.05, y: 0.05, w: 0.9, h: 0.9 };
+  $('cropper').hidden = false;
+  $('cropImg').onload = paintCrop; if ($('cropImg').complete) paintCrop();
+}
+function paintCrop() {
+  const img = $('cropImg'), r = cropRect, b = $('cropBox');
+  b.style.left = img.offsetLeft + r.x * img.clientWidth + 'px'; b.style.top = img.offsetTop + r.y * img.clientHeight + 'px';
+  b.style.width = r.w * img.clientWidth + 'px'; b.style.height = r.h * img.clientHeight + 'px';
+}
+(() => {
+  let drag = null;
+  $('cropBox').addEventListener('pointerdown', (e) => {
+    e.preventDefault(); $('cropBox').setPointerCapture(e.pointerId);
+    drag = { h: e.target.dataset.h || 'move', sx: e.clientX, sy: e.clientY, r: { ...cropRect } };
+  });
+  $('cropBox').addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    const img = $('cropImg'), dx = (e.clientX - drag.sx) / img.clientWidth, dy = (e.clientY - drag.sy) / img.clientHeight;
+    const r = { ...drag.r }, min = 0.05, cl = (v) => Math.max(0, Math.min(1, v));
+    if (drag.h === 'move') { r.x = cl(Math.min(r.x + dx, 1 - r.w)); r.y = cl(Math.min(r.y + dy, 1 - r.h)); }
+    else {
+      if (drag.h.includes('w')) { const nx = cl(Math.min(r.x + dx, r.x + r.w - min)); r.w += r.x - nx; r.x = nx; }
+      if (drag.h.includes('e')) r.w = Math.max(min, Math.min(1 - r.x, r.w + dx));
+      if (drag.h.includes('n')) { const ny = cl(Math.min(r.y + dy, r.y + r.h - min)); r.h += r.y - ny; r.y = ny; }
+      if (drag.h.includes('s')) r.h = Math.max(min, Math.min(1 - r.y, r.h + dy));
+    }
+    cropRect = r; paintCrop();
+  });
+  const end = () => { drag = null; };
+  $('cropBox').addEventListener('pointerup', end); $('cropBox').addEventListener('pointercancel', end);
+  window.addEventListener('resize', () => { if (!$('cropper').hidden) paintCrop(); });
+})();
+$('cropReset').onclick = () => { cropRect = { x: 0, y: 0, w: 1, h: 1 }; paintCrop(); };
+$('cropCancel').onclick = () => { $('cropper').hidden = true; cropTarget = null; };
+$('cropOk').onclick = async () => {
+  if (!cropTarget) return;
+  const img = await loadImg(cropTarget.orig || cropTarget.data), r = cropRect;
+  cropTarget.data = toJpeg(img, { x: r.x * img.width, y: r.y * img.height, w: r.w * img.width, h: r.h * img.height });
+  cropTarget.uploadId = undefined; // 裁過要重新上傳
+  $('cropper').hidden = true; cropTarget = null;
+  saveDraft(); renderFields(currentSecVals()); msg('✂️ 裁好了');
+};
 
 function buildPreset(sec, kind) {
   const wrap = document.createElement('div'); wrap.className = 'note-sec preset';
