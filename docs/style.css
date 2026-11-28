@@ -265,3 +265,8 @@ body[data-tab="org"] { --accent:var(--c-blue); --accent-soft:var(--c-blue-bg); }
 #noteSheet .note-actions .pill { font-size:14px; padding:10px 8px; }
 #noteSheet .player { top:-12px; margin:0 0 12px; }
 @media (min-width:700px) { #noteSheet .note-body { max-width:760px; margin:0 auto; width:100%; } }
+/* 影片視窗縮小：高度最多約畫面的 26%（直式影片也不會太高） */
+#noteSheet .player { aspect-ratio:auto; height:min(26vh, 210px); max-width:min(100%, 380px); margin:0 auto 12px; }
+#noteSheet .player.tall { height:min(34vh, 300px); max-width:min(100%, 240px); }
+#noteSheet .player { height:auto; aspect-ratio:16/9; width:min(78%, 300px); max-width:none; }
+#noteSheet .player.tall { aspect-ratio:auto; height:min(30vh, 260px); width:min(60%, 200px); }
