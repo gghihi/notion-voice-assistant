@@ -1,6 +1,6 @@
 // 後端入口：只開放少數幾個網址，每個（除了登入）都要有效通行證。
 import { checkPassword, issueToken, verifyToken } from './auth.js';
-import { checkDataSources, createNote, createTask, createPage, listTemplates, createPageWithTemplate, getDataSource, searchPages, getPage, pageTitle, pageIdFromUrl, trashPage, updatePageProps, appendBlocks, paragraphs } from './notion.js';
+import { checkDataSources, createNote, createTask, createPage, listTemplates, createPageWithTemplate, getDataSource, searchPages, getPage, pageTitle, pageIdFromUrl, trashPage, updatePageProps, appendBlocks, paragraphs, listChildren, insertAfter, outlineOf, sectionEnd } from './notion.js';
 import { DBS, describe, toNotionProps, fromNotionProps } from './fields.js';
 import { STATUS_TO_NOTION } from './organize.js';
 import { detect, fetchInfo, buildPage, CHANNEL, resolveShare } from './video.js';
@@ -102,21 +102,46 @@ export default {
       if (url.pathname === '/api/organize' && req.method === 'GET') {
         return json({ items: await store(env).organizeWithStatus() }, 200, h);
       }
+      if (url.pathname === '/api/organize/outline' && req.method === 'GET') {
+        // 讀出這一頁的範本格式（段落標題），讓 APP 照格式分段填
+        const item = await store(env).getOrganize(url.searchParams.get('id'));
+        const pid = item && pageIdFromUrl(item.url);
+        if (!pid) return json({ error: '找不到這筆，可能已經超過 7 天' }, 404, h);
+        return json({ sections: outlineOf(await listChildren(env, pid)) }, 200, h);
+      }
       if (url.pathname === '/api/organize/note' && req.method === 'POST') {
         const body = await readJson(req);
         const text = typeof body?.text === 'string' ? body.text.trim() : '';
-        if (!text) return json({ error: '筆記是空的' }, 400, h);
-        if (text.length > MAX_TEXT) return json({ error: '筆記太長（上限 5000 字）' }, 400, h);
+        const sections = body?.sections && typeof body.sections === 'object' ? Object.entries(body.sections)
+          .map(([k, v]) => [k, typeof v === 'string' ? v.trim() : '']).filter(([, v]) => v) : [];
+        const total = text.length + sections.reduce((n, [, v]) => n + v.length, 0);
+        if (!total) return json({ error: '筆記是空的' }, 400, h);
+        if (total > MAX_TEXT) return json({ error: '筆記太長（上限 5000 字）' }, 400, h);
         // 只能寫進「整理庫裡有的」頁面
         const item = await store(env).getOrganize(body.id);
         const pid = item && pageIdFromUrl(item.url);
         if (!pid) return json({ error: '找不到這筆，可能已經超過 7 天' }, 404, h);
-        const t = new Date(Date.now() + 8 * 3600000);
-        const stamp = `${t.getUTCMonth() + 1}/${t.getUTCDate()} ${String(t.getUTCHours()).padStart(2, '0')}:${String(t.getUTCMinutes()).padStart(2, '0')}`;
-        await appendBlocks(env, pid, [
-          { object: 'block', type: 'heading_3', heading_3: { rich_text: [{ type: 'text', text: { content: `📝 我的筆記（${stamp}）` } }] } },
-          ...paragraphs(text).slice(0, 99),
-        ]);
+        // 照範本格式：寫進各自的段落（收合的放進裡面；一般標題插在該段最後面）
+        if (sections.length) {
+          const blocks = await listChildren(env, pid);
+          const outline = outlineOf(blocks);
+          for (const [sid, v] of sections) {
+            const sec = outline.find((o) => o.id === sid);
+            if (!sec) continue; // 不是這一頁的區塊就跳過
+            const kids = paragraphs(v).slice(0, 100);
+            if (sec.toggle) await appendBlocks(env, sid, kids);
+            else await insertAfter(env, pid, sectionEnd(blocks, sid), kids);
+          }
+        }
+        // 沒有範本格式（或「其他」欄）的內容，加在頁面最後面
+        if (text) {
+          const t = new Date(Date.now() + 8 * 3600000);
+          const stamp = `${t.getUTCMonth() + 1}/${t.getUTCDate()} ${String(t.getUTCHours()).padStart(2, '0')}:${String(t.getUTCMinutes()).padStart(2, '0')}`;
+          await appendBlocks(env, pid, [
+            { object: 'block', type: 'heading_3', heading_3: { rich_text: [{ type: 'text', text: { content: `📝 我的筆記（${stamp}）` } }] } },
+            ...paragraphs(text).slice(0, 99),
+          ]);
+        }
         // 寫了筆記就算「整理中」；選了「完成」就標記完成
         const status = body.markDone ? 'done' : 'doing';
         const props = { ...STATUS_TO_NOTION[status] };

@@ -134,34 +134,58 @@ function paintOrganize() {
     list.append(g);
   }
 }
-// 寫筆記：在 APP 裡寫完直接加到那一頁 Notion 的最後面（草稿存在這台手機）
-let noteItem = null;
-const draftKey = (id) => 'draft-' + id;
-function openNote(it) {
-  noteItem = it;
+// 寫筆記：照這一頁的範本格式（段落標題）分段填；沒有範本格式就一整段加在最後面。草稿存在這台手機
+let noteItem = null, noteSections = [];
+const draftKey = (id) => 'draft2-' + id;
+function readDraft(id) { try { return JSON.parse(localStorage.getItem(draftKey(id)) || '{}'); } catch { return {}; } }
+function saveDraft() {
+  if (!noteItem) return;
+  const d = { other: $('noteText').value, sec: {} };
+  document.querySelectorAll('#noteFields textarea').forEach((t) => { d.sec[t.dataset.id] = t.value; });
+  try { localStorage.setItem(draftKey(noteItem.id), JSON.stringify(d)); } catch {}
+  const n = [...document.querySelectorAll('#noteSheet textarea')].reduce((x, t) => x + t.value.length, 0);
+  $('noteCount').textContent = n + ' 字';
+}
+async function openNote(it) {
+  noteItem = it; noteSections = [];
   $('noteFor').textContent = '📚 ' + it.title; $('noteFor').href = it.url || '#';
-  try { $('noteText').value = localStorage.getItem(draftKey(it.id)) || ''; } catch { $('noteText').value = ''; }
-  $('noteCount').textContent = $('noteText').value.length + ' 字';
+  const d = readDraft(it.id);
+  $('noteText').value = d.other || '';
+  const box = $('noteFields'); box.innerHTML = '<p class="hint">讀取範本格式中…</p>';
+  $('noteOtherLabel').textContent = '筆記';
   $('noteSheet').hidden = false; $('noteBg').hidden = false;
-  setTimeout(() => $('noteText').focus(), 300);
+  try { noteSections = (await api('/api/organize/outline?id=' + it.id)).sections; } catch { noteSections = []; }
+  if (noteItem !== it) return;
+  box.innerHTML = '';
+  for (const sec of noteSections) {
+    const wrap = document.createElement('label'); wrap.className = 'note-sec';
+    const head = document.createElement('div'); head.className = 'note-sec-head';
+    const name = document.createElement('span'); name.textContent = sec.text;
+    const mic = document.createElement('button'); mic.type = 'button'; mic.className = 'mini-mic'; mic.textContent = '🎤';
+    const ta = document.createElement('textarea'); ta.rows = 3; ta.dataset.id = sec.id; ta.value = (d.sec || {})[sec.id] || '';
+    ta.placeholder = `寫進「${sec.text}」`; ta.addEventListener('input', saveDraft);
+    bindMic(mic, ta);
+    head.append(name, mic); wrap.append(head, ta); box.append(wrap);
+  }
+  $('noteOtherLabel').textContent = noteSections.length ? '其他補充（加在頁面最後面）' : '筆記';
+  saveDraft();
 }
 function closeNote() { $('noteSheet').hidden = true; $('noteBg').hidden = true; noteItem = null; }
-$('noteText').addEventListener('input', () => {
-  $('noteCount').textContent = $('noteText').value.length + ' 字';
-  if (noteItem) { try { localStorage.setItem(draftKey(noteItem.id), $('noteText').value); } catch {} }
-});
+$('noteText').addEventListener('input', saveDraft);
 $('noteClose').onclick = closeNote; $('noteBg').onclick = closeNote;
 async function saveNote(markDone) {
-  const text = $('noteText').value.trim();
   if (!noteItem) return;
-  if (!text) return msg('先寫點東西吧');
   const it = noteItem;
+  const sections = {};
+  document.querySelectorAll('#noteFields textarea').forEach((t) => { if (t.value.trim()) sections[t.dataset.id] = t.value; });
+  const text = $('noteText').value.trim();
+  if (!text && !Object.keys(sections).length) return msg('先寫點東西吧');
   $('noteSave').disabled = $('noteSaveDone').disabled = true; msg('存檔中…');
   try {
-    const r = await api('/api/organize/note', { id: it.id, text, markDone });
+    const r = await api('/api/organize/note', { id: it.id, text, sections, markDone });
     try { localStorage.removeItem(draftKey(it.id)); } catch {}
     it.status = r.status; closeNote(); paintOrganize();
-    msg(markDone ? '✅ 筆記已存進 Notion，這則整理完成！' : '✅ 筆記已存進 Notion');
+    msg(markDone ? '✅ 筆記已照範本格式存進 Notion，這則整理完成！' : '✅ 筆記已照範本格式存進 Notion');
   } catch (e) { msg(e.message); }
   finally { $('noteSave').disabled = $('noteSaveDone').disabled = false; }
 }
@@ -358,20 +382,22 @@ document.querySelectorAll('.tab').forEach((t) => {
 // 語音輸入：用瀏覽器內建的語音辨識，聲音不經過我們的後端
 const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
 let rec = null;
-document.querySelectorAll('.mic').forEach((btn) => {
+function bindMic(btn, box) {
+  const label = btn.textContent;
   btn.onclick = () => {
     if (!Speech) return msg('這個瀏覽器不支援語音輸入，請改用打字（也可以用鍵盤上的麥克風）');
     if (rec) { rec.stop(); return; }
-    const box = $(btn.dataset.for);
+    box = box || $(btn.dataset.for);
     rec = new Speech();
     rec.lang = 'zh-TW'; rec.interimResults = true; rec.continuous = true;
     const before = box.value;
-    rec.onresult = (e) => { box.value = before + Array.from(e.results).map((r) => r[0].transcript).join(''); };
+    rec.onresult = (e) => { box.value = before + Array.from(e.results).map((r) => r[0].transcript).join(''); box.dispatchEvent(new Event('input')); };
     rec.onerror = (e) => msg(e.error === 'not-allowed' ? '請允許使用麥克風' : '語音辨識中斷，可以再按一次');
-    rec.onend = () => { rec = null; btn.classList.remove('recording'); btn.textContent = '🎤 說話'; };
-    rec.start(); btn.classList.add('recording'); btn.textContent = '⏹ 停止'; msg('');
+    rec.onend = () => { rec = null; btn.classList.remove('recording'); btn.textContent = label; };
+    rec.start(); btn.classList.add('recording'); btn.textContent = label.length > 2 ? '⏹ 停止' : '⏹'; msg('');
   };
-});
+}
+document.querySelectorAll('.mic').forEach((btn) => bindMic(btn));
 
 // 日程：先看懂句子，讓使用者確認時間，再存
 const pad = (n) => String(n).padStart(2, '0');

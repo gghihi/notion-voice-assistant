@@ -153,3 +153,45 @@ export async function updatePageProps(env, pageId, properties) {
 export async function appendBlocks(env, pageId, children) {
   await call(env, '/blocks/' + pageId + '/children', 'PATCH', { children });
 }
+
+// 讀頁面第一層的區塊（最多 100 個）
+export async function listChildren(env, blockId) {
+  const r = await call(env, '/blocks/' + blockId + '/children?page_size=100');
+  return r.results || [];
+}
+
+// 在某個區塊「後面」插入內容
+export async function insertAfter(env, pageId, afterId, children) {
+  await call(env, '/blocks/' + pageId + '/children', 'PATCH', { children, after: afterId });
+}
+
+const plain = (rt) => (rt || []).map((t) => t.plain_text || t.text?.content || '').join('').trim();
+/** 從頁面區塊找出「段落標題」：標題（含可收合標題）和收合清單。回傳 [{ id, text, toggle, kind }] */
+export function outlineOf(blocks) {
+  const out = [];
+  for (const b of blocks) {
+    const t = b.type;
+    if (/^heading_[123]$/.test(t)) {
+      const text = plain(b[t].rich_text);
+      if (text) out.push({ id: b.id, text, toggle: !!b[t].is_toggleable, kind: t });
+    } else if (t === 'toggle') {
+      const text = plain(b.toggle.rich_text);
+      if (text) out.push({ id: b.id, text, toggle: true, kind: t });
+    }
+  }
+  return out;
+}
+
+/** 一般標題的段落：找到這個標題底下最後一個區塊（下一個標題之前），筆記插在那後面 */
+export function sectionEnd(blocks, headingId) {
+  const i = blocks.findIndex((b) => b.id === headingId);
+  if (i < 0) return null;
+  const level = Number((blocks[i].type.match(/heading_(\d)/) || [])[1] || 9);
+  let last = blocks[i].id;
+  for (let j = i + 1; j < blocks.length; j++) {
+    const m = blocks[j].type.match(/^heading_(\d)$/);
+    if (m && Number(m[1]) <= level) break;
+    last = blocks[j].id;
+  }
+  return last;
+}

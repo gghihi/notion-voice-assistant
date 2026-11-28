@@ -226,3 +226,10 @@ body[data-tab="org"] { --accent:var(--c-blue); --accent-soft:var(--c-blue-bg); }
 #noteSheet { z-index:21; } #noteBg { z-index:20; }
 #noteSheet .mic { border:2px solid var(--ink); border-radius:12px; padding:9px 16px; background:var(--paper); color:var(--text); font-weight:700; box-shadow:var(--shadow-sm); }
 #noteSheet .mic.recording { background:#ff5a5a; color:#fff; }
+.note-fields { display:grid; gap:12px; margin-bottom:12px; }
+.note-sec { display:grid; gap:6px; }
+.note-sec-head { display:flex; justify-content:space-between; align-items:center; font-weight:900; color:var(--ink); }
+.note-sec textarea { min-height:80px !important; box-shadow:none; }
+.mini-mic { width:34px; height:34px; border:2px solid var(--ink); border-radius:50%; background:var(--paper); font-size:15px; padding:0; }
+.mini-mic.recording { background:#ff5a5a; }
+#noteText { min-height:110px; }

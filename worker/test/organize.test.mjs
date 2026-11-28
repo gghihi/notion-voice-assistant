@@ -22,3 +22,19 @@ test('全部整理完就不提醒', () => {
   assert.match(m.body, /1 則還沒整理、1 則整理中/);
   assert.match(m.body, /AI 資安/);
 });
+
+import { outlineOf, sectionEnd } from '../src/notion.js';
+test('範本格式：找段落標題與段落結尾', () => {
+  const rt = (t) => [{ plain_text: t }];
+  const blocks = [
+    { id: 'h1', type: 'heading_2', heading_2: { rich_text: rt('重點整理') } },
+    { id: 'p1', type: 'paragraph', paragraph: { rich_text: [] } },
+    { id: 'p2', type: 'bulleted_list_item', bulleted_list_item: { rich_text: [] } },
+    { id: 'h2', type: 'heading_2', heading_2: { rich_text: rt('心得'), is_toggleable: true } },
+    { id: 't1', type: 'toggle', toggle: { rich_text: rt('延伸閱讀') } },
+    { id: 'h3', type: 'heading_3', heading_3: { rich_text: [] } },
+  ];
+  assert.deepEqual(outlineOf(blocks).map((o) => [o.text, o.toggle]), [['重點整理', false], ['心得', true], ['延伸閱讀', true]]);
+  assert.equal(sectionEnd(blocks, 'h1'), 'p2');
+  assert.equal(sectionEnd(blocks, 'nope'), null);
+});

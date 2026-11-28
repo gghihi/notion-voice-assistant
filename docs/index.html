@@ -135,7 +135,9 @@
   <section class="sheet" id="noteSheet" hidden aria-label="寫筆記">
     <div class="sheet-head"><h2>📝 寫筆記</h2><button class="x" id="noteClose" type="button" aria-label="收起">✕</button></div>
     <a class="note-for" id="noteFor" href="#" target="_blank" rel="noopener"></a>
-    <textarea id="noteText" rows="9" placeholder="看完有什麼重點、心得、想試的事？打字或按麥克風用說的。沒寫完關掉也會幫你留著草稿。"></textarea>
+    <div id="noteFields" class="note-fields"></div>
+    <label class="note-sec"><div class="note-sec-head"><span id="noteOtherLabel">筆記</span></div>
+      <textarea id="noteText" rows="5" placeholder="看完有什麼重點、心得、想試的事？打字或按麥克風用說的。沒寫完關掉也會幫你留著草稿。"></textarea></label>
     <div class="row">
       <button class="ghost mic" data-for="noteText" type="button">🎤 說話</button>
       <span class="note-count" id="noteCount">0 字</span>
