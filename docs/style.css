@@ -346,3 +346,6 @@ body[data-tab="org"] { --accent:var(--c-blue); --accent-soft:var(--c-blue-bg); }
 .player.fs .fs-bar, .player:fullscreen .fs-bar { display:flex; }
 .fs-bar.dim { opacity:.25; }
 .fs-btn { width:42px; height:42px; border:2px solid #fff; border-radius:50%; background:rgba(0,0,0,.55); color:#fff; font-size:18px; }
+/* 影片版面放大 1.5 倍 */
+#noteSheet .player { width:min(100%, 450px); }
+#noteSheet .player.tall { height:min(45vh, 390px); width:min(90%, 300px); }
