@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://*.workers.dev http://localhost:8787; frame-src https://www.youtube-nocookie.com https://www.youtube.com https://www.instagram.com https://www.threads.com https://www.threads.net; img-src 'self' data: https://i.ytimg.com https://*.cdninstagram.com https://*.fbcdn.net">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://*.workers.dev http://localhost:8787; frame-src https://www.youtube-nocookie.com https://www.youtube.com https://www.instagram.com https://www.threads.com https://www.threads.net; img-src 'self' data: blob: https://i.ytimg.com https://*.cdninstagram.com https://*.fbcdn.net">
 <meta name="referrer" content="no-referrer">
 <title>Notion 請助手🫰</title>
 <script src="theme.js"></script>
@@ -133,7 +133,12 @@
   </section>
   <div class="sheet-bg" id="noteBg" hidden></div>
   <section class="sheet" id="noteSheet" hidden aria-label="寫筆記">
-    <div class="sheet-head"><h2>📝 寫筆記</h2><button class="x" id="noteClose" type="button" aria-label="收起">✕</button></div>
+    <div class="sheet-head"><h2>📝 寫筆記</h2>
+      <div class="head-tools">
+        <button class="tool" id="undoBtn" type="button" aria-label="上一步" title="上一步">↩️</button>
+        <button class="tool" id="redoBtn" type="button" aria-label="復原" title="復原">↪️</button>
+        <button class="x" id="noteClose" type="button" aria-label="收起">✕</button>
+      </div></div>
     <div class="note-body">
     <a class="note-for" id="noteFor" href="#" target="_blank" rel="noopener"></a>
     <div class="mode-seg" role="tablist">
@@ -141,6 +146,8 @@
       <button type="button" class="segb" id="modeAi">✨ AI 撰寫</button>
     </div>
     <div class="player" id="notePlayer" hidden></div>
+    <button type="button" class="snap-btn" id="snapBtn" hidden>📸 截圖放進筆記（記下目前時間點）</button>
+    <input type="file" id="imgPick" accept="image/*" hidden>
     <div class="ai-panel" id="aiPanel" hidden>
       <button type="button" class="big-mic" id="aiHintMic" aria-label="按一下用說的交代 AI">🎤</button>
       <p class="hint center">按麥克風用說的，或在下面打字，交代 AI 整份筆記要注意什麼（都不填也可以）</p>

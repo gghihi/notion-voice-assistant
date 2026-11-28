@@ -319,3 +319,17 @@ body[data-tab="org"] { --accent:var(--c-blue); --accent-soft:var(--c-blue-bg); }
 #app .trash-btn { width:38px; height:34px; padding:0; border:2px solid var(--ink); border-radius:999px; background:var(--paper); font-size:16px; box-shadow:var(--shadow-sm); }
 .org-item { transition:transform .25s, opacity .25s; }
 .org-item.tearing { transform:translateX(40px) rotate(4deg); opacity:0; }
+/* 上一步／復原 */
+.head-tools { display:flex; gap:8px; align-items:center; }
+.tool { width:38px; height:36px; padding:0; border:2px solid var(--ink); border-radius:10px; background:var(--paper); font-size:17px; }
+.tool:disabled { opacity:.35; }
+/* 圖片 */
+.imgs { display:grid; gap:8px; }
+.img-item { position:relative; margin:0; display:grid; gap:4px; padding-right:30px; }
+.img-item img { width:100%; max-height:220px; object-fit:contain; background:#f1efe9; border:1.5px solid var(--ink); border-radius:8px; }
+.img-item .del-mini { top:4px; right:0; }
+.img-item input { font-size:13px !important; padding:5px 8px !important; }
+.snap-btn { display:block; margin:-4px auto 12px; border:2px solid var(--ink); border-radius:999px; padding:7px 14px; background:var(--paper); font-weight:800; font-size:14px; box-shadow:var(--shadow-sm); }
+.snap-btn:active { transform:translate(2px,2px); box-shadow:none; }
+/* 正在寫的那一格 */
+.preset-card.target, .sub.target { outline:3px solid var(--c-blue); outline-offset:3px; border-radius:10px; }

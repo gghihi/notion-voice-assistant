@@ -224,15 +224,21 @@ export const CODE_LANGS = ['xml', 'plain text', 'javascript', 'python', 'html', 
 // 網址書籤（只收 http/https）
 const bookmarks = (links) => (Array.isArray(links) ? links : []).filter((u) => typeof u === 'string' && /^https?:\/\/[^\s]+$/.test(u.trim()) && u.length < 2000)
   .slice(0, 10).map((u) => ({ object: 'block', type: 'bookmark', bookmark: { url: u.trim() } }));
+// 圖片（已上傳到 Notion 的 file_upload 編號）
+const UUID = /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i;
+const images = (list) => (Array.isArray(list) ? list : []).filter((im) => im && UUID.test(im.uploadId || '')).slice(0, 10).map((im) => ({
+  object: 'block', type: 'image',
+  image: { type: 'file_upload', file_upload: { id: im.uploadId }, caption: im.caption ? [{ type: 'text', text: { content: String(im.caption).slice(0, 300), ...(typeof im.link === 'string' && /^https:\/\/(www\.)?(youtube\.com|youtu\.be)\//.test(im.link) ? { link: { url: im.link } } : {}) } }] : [] },
+}));
 const rt = (s) => (s ? [{ type: 'text', text: { content: String(s).slice(0, 2000) } }] : []);
 /** APP 裡用「＋ 重點／＋ 副重點／＋ 一般問題」做的結構 → Notion 區塊（和範本按鈕插入的格式一樣） */
 export function itemBlocks(items) {
   const out = [];
   for (const it of (Array.isArray(items) ? items : []).slice(0, 30)) {
     if (it?.kind === 'point') {
-      const subs = (Array.isArray(it.subs) ? it.subs : []).slice(0, 20).filter((s) => s && (s.title || s.text || s.code || bookmarks(s.links).length)).map((s) => {
-        const kids = paragraphs(s.text || '').filter((p) => p.paragraph.rich_text.length).slice(0, 39);
-        kids.push(...bookmarks(s.links));
+      const subs = (Array.isArray(it.subs) ? it.subs : []).slice(0, 20).filter((s) => s && (s.title || s.text || s.code || bookmarks(s.links).length || images(s.images).length)).map((s) => {
+        const kids = paragraphs(s.text || '').filter((p) => p.paragraph.rich_text.length).slice(0, 29);
+        kids.push(...images(s.images), ...bookmarks(s.links));
         // 程式筆記範本的「提示詞按鈕」：小標題裡放一個程式碼框
         if (s.code) kids.push({ object: 'block', type: 'code', code: { language: CODE_LANGS.includes(s.lang) ? s.lang : 'xml', rich_text: rt(s.code) } });
         return { object: 'block', type: 'heading_3', heading_3: { rich_text: rt(s.title || '副重點'), is_toggleable: true, children: kids } };
@@ -240,9 +246,9 @@ export function itemBlocks(items) {
       if (!it.title && !subs.length) continue;
       out.push({ object: 'block', type: 'heading_2', heading_2: { rich_text: rt(it.title || '重點'), is_toggleable: true, children: subs } });
     } else if (it?.kind === 'qa') {
-      const links = bookmarks(it.links);
-      if (!it.q && !it.a && !links.length) continue;
-      out.push({ object: 'block', type: 'toggle', toggle: { rich_text: rt(it.q || '?'), children: [...paragraphs(it.a || '').filter((p) => p.paragraph.rich_text.length).slice(0, 40), ...links] } });
+      const links = bookmarks(it.links), pics = images(it.images);
+      if (!it.q && !it.a && !links.length && !pics.length) continue;
+      out.push({ object: 'block', type: 'toggle', toggle: { rich_text: rt(it.q || '?'), children: [...paragraphs(it.a || '').filter((p) => p.paragraph.rich_text.length).slice(0, 30), ...pics, ...links] } });
     }
   }
   return out;
@@ -251,4 +257,18 @@ export function itemBlocks(items) {
 export async function deleteBlock(env, blockId) {
   try { await call(env, '/blocks/' + blockId, 'DELETE'); }
   catch (e) { if (e.status !== 404) throw e; }
+}
+
+// 上傳圖片到 Notion（Notion 的檔案上傳功能，單檔 20MB 內）：回傳 file_upload 編號，之後放進圖片區塊
+export async function uploadImage(env, bytes, contentType, filename) {
+  const up = await call(env, '/file_uploads', 'POST', { mode: 'single_part', filename, content_type: contentType });
+  const form = new FormData();
+  form.append('file', new Blob([bytes], { type: contentType }), filename);
+  const res = await fetch(`https://api.notion.com/v1/file_uploads/${up.id}/send`, {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + env.NOTION_TOKEN, 'Notion-Version': env.NOTION_VERSION || '2025-09-03' },
+    body: form,
+  });
+  if (!res.ok) { const e = new Error('notion_' + res.status); e.status = res.status; throw e; }
+  return up.id;
 }

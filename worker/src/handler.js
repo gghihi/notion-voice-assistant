@@ -1,6 +1,6 @@
 // 後端入口：只開放少數幾個網址，每個（除了登入）都要有效通行證。
 import { checkPassword, issueToken, verifyToken } from './auth.js';
-import { checkDataSources, createNote, createTask, createPage, listTemplates, createPageWithTemplate, getDataSource, searchPages, getPage, pageTitle, pageIdFromUrl, trashPage, updatePageProps, appendBlocks, paragraphs, listChildren, insertAfter, outlineOf, sectionEnd, sectionAnchor, itemBlocks } from './notion.js';
+import { checkDataSources, createNote, createTask, createPage, listTemplates, createPageWithTemplate, getDataSource, searchPages, getPage, pageTitle, pageIdFromUrl, trashPage, updatePageProps, appendBlocks, paragraphs, uploadImage, listChildren, insertAfter, outlineOf, sectionEnd, sectionAnchor, itemBlocks } from './notion.js';
 import { DBS, describe, toNotionProps, fromNotionProps } from './fields.js';
 import { STATUS_TO_NOTION } from './organize.js';
 import { readSection, saveSectionItems, savePlain, presetOf } from './notes.js';
@@ -206,6 +206,17 @@ export default {
         const props = { ...STATUS_TO_NOTION[status] };
         try { await updatePageProps(env, pid, props); } catch (e) { if (e.status !== 400) throw e; delete props.Done; await updatePageProps(env, pid, props).catch(() => {}); }
         return json({ ok: true, status }, 200, h);
+      }
+      if (url.pathname === '/api/upload' && req.method === 'POST') {
+        // 筆記裡的圖片：APP 先壓縮成 JPEG，這裡轉交給 Notion（最大 6MB）
+        if (Number(req.headers.get('Content-Length') || 0) > 6_000_000) return json({ error: '圖片太大' }, 413, h);
+        const body = await req.json().catch(() => null);
+        const m = typeof body?.dataUrl === 'string' && body.dataUrl.match(/^data:(image\/(?:jpeg|png|webp|gif));base64,([A-Za-z0-9+/=]+)$/);
+        if (!m) return json({ error: '不是支援的圖片格式' }, 400, h);
+        const bytes = Uint8Array.from(atob(m[2]), (c) => c.charCodeAt(0));
+        if (bytes.length > 5_000_000) return json({ error: '圖片太大（上限 5MB）' }, 413, h);
+        const ext = m[1].split('/')[1].replace('jpeg', 'jpg');
+        return json({ uploadId: await uploadImage(env, bytes, m[1], `note-${Date.now()}.${ext}`) }, 200, h);
       }
       if (url.pathname === '/api/organize/delete' && req.method === 'POST') {
         // 刪掉整理庫的一筆：Notion 那一頁放進垃圾桶（30 天內可救回），整理庫和公佈欄都移除

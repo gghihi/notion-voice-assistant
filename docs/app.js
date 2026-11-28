@@ -158,8 +158,13 @@ function saveDraft() {
   if (!noteItem) return;
   const d = { edited: true, other: $('noteText').value, sec: {}, items: noteItems, notes: sectionNotes };
   document.querySelectorAll('#noteFields textarea[data-id]').forEach((t) => { d.sec[t.dataset.id] = t.value; });
-  try { localStorage.setItem(draftKey(noteItem.id), JSON.stringify(d)); } catch {}
+  try { localStorage.setItem(draftKey(noteItem.id), JSON.stringify(stripImages(d))); } catch {}
+  pushHistory();
   updateCount();
+}
+// 草稿不存圖片本身（太大），圖片只留在這次打開的筆記本裡
+function stripImages(d) {
+  return JSON.parse(JSON.stringify(d, (k, v) => (k === 'images' ? undefined : v)));
 }
 function updateCount() {
   const n = [...document.querySelectorAll('#noteSheet textarea')].reduce((x, t) => x + t.value.length, 0);
@@ -182,6 +187,9 @@ async function openNote(it) {
   $('notePlayer').hidden = !src;
   $('notePlayer').innerHTML = src ? `<iframe src="${src}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" title="影片"></iframe>` : '';
   if (video?.platform === 'IG' || video?.platform === 'Threads') $('notePlayer').classList.add('tall'); else $('notePlayer').classList.remove('tall');
+  ytId = video?.platform === 'YouTube' ? video.id : null; ytTime = 0; curTarget = null;
+  $('snapBtn').hidden = !src;
+  const fr = $('notePlayer').querySelector('iframe'); if (fr) fr.addEventListener('load', () => { listenYouTube(); setTimeout(listenYouTube, 1500); });
   box.innerHTML = '';
   // 已經存進 Notion 的筆記先讀出來，可以直接修改（有沒存的草稿就先用草稿）
   origItems = {}; origPlain = {}; origOrder = {};
@@ -197,27 +205,62 @@ async function openNote(it) {
       if (!hasDraft) noteItems[sec.id] = JSON.parse(JSON.stringify(ex.items));
     } else if (ex.paraIds) origPlain[sec.id] = { text: ex.text || '', ids: ex.paraIds };
   }
+  noteSrc = src;
+  const secVals = {};
+  for (const sec of noteSections) secVals[sec.id] = hasDraft ? ((d.sec || {})[sec.id] ?? origPlain[sec.id]?.text ?? '') : (origPlain[sec.id]?.text || '');
+  renderFields(secVals);
+  const hasSections = !!box.children.length;
+  if (hasDraft && !hasSections && d.other) $('noteText').value = d.other;
+  if (hasSections) $('noteText').value = '';
+  updateCount();
+  undoStack = []; future = []; pushHistory(true); paintUndo();
+}
+// 依目前的 noteItems 和文字內容，重畫筆記本的段落（打開、上一步、復原都會用到）
+let noteSrc = null;
+function renderFields(secVals) {
+  const box = $('noteFields'); box.innerHTML = '';
   for (const sec of noteSections) {
-    if (/影片/.test(sec.text) && src) continue; // 「課程影片」那一段就用上面的播放器，不用再寫
+    if (/影片/.test(sec.text) && noteSrc) continue; // 「課程影片」那一段就用上面的播放器，不用再寫
     const preset = presetOf(sec);
     if (preset) { box.append(buildPreset(sec, preset)); continue; }
     const wrap = document.createElement('label'); wrap.className = 'note-sec plain-sec'; wrap.hidden = true; // 一般段落改在 AI 模式填
     const head = document.createElement('div'); head.className = 'note-sec-head';
     const name = document.createElement('span'); name.textContent = sec.text;
-    const ta = document.createElement('textarea'); ta.rows = 3; ta.dataset.id = sec.id; ta.value = hasDraft ? ((d.sec || {})[sec.id] ?? origPlain[sec.id]?.text ?? '') : (origPlain[sec.id]?.text || '');
+    const ta = document.createElement('textarea'); ta.rows = 3; ta.dataset.id = sec.id; ta.value = secVals[sec.id] || '';
     ta.placeholder = `寫進「${sec.text}」`; ta.dataset.name = sec.text; ta.addEventListener('input', saveDraft);
     head.append(name); wrap.append(head, ta); box.append(wrap);
   }
-  // 有範本格式就照格式寫，不另外放「其他補充」
   const hasSections = !!box.children.length;
   if (hasSections && !box.querySelector('.note-sec:not(.plain-sec)')) {
     const tip = document.createElement('p'); tip.className = 'hint'; tip.textContent = '這一頁的段落都是一般文字段落，請到「✨ AI 撰寫」填寫'; box.prepend(tip);
   }
-  $('noteOther').hidden = hasSections; $('noteMic').hidden = hasSections;
-  if (hasDraft && !hasSections && d.other) $('noteText').value = d.other;
-  if (hasSections) $('noteText').value = '';
-  updateCount();
+  $('noteOther').hidden = hasSections || !$('aiPanel').hidden; $('noteMic').hidden = true;
+  if (!$('aiPanel').hidden) { renderVoiceList(); renderPreview(); }
 }
+
+function markTarget(el) { document.querySelectorAll('#noteFields .target').forEach((x) => x.classList.remove('target')); el.classList.add('target'); }
+
+// ===== 上一步／復原 =====
+let undoStack = [], future = [], histTimer = null;
+function snapshot() {
+  const sec = {}; document.querySelectorAll('#noteFields textarea[data-id]').forEach((t) => { sec[t.dataset.id] = t.value; });
+  return JSON.stringify({ items: noteItems, notes: sectionNotes, sec, other: $('noteText').value });
+}
+function pushHistory(now) {
+  clearTimeout(histTimer);
+  const go = () => { const snap = snapshot(); if (undoStack[undoStack.length - 1] !== snap) { undoStack.push(snap); if (undoStack.length > 40) undoStack.shift(); future = []; paintUndo(); } };
+  if (now) go(); else histTimer = setTimeout(go, 500); // 連續打字合併成一步
+}
+function applySnap(snap) {
+  const st = JSON.parse(snap);
+  noteItems = st.items || {}; sectionNotes = st.notes || {}; $('noteText').value = st.other || '';
+  renderFields(st.sec || {}); updateCount(); paintUndo();
+  try { const d = JSON.parse(snap); localStorage.setItem(draftKey(noteItem.id), JSON.stringify({ edited: true, ...stripImages(d) })); } catch {}
+}
+function paintUndo() { $('undoBtn').disabled = undoStack.length < 2; $('redoBtn').disabled = !future.length; }
+$('undoBtn').onclick = () => { clearTimeout(histTimer); pushHistory(true); if (undoStack.length < 2) return; future.push(undoStack.pop()); applySnap(undoStack[undoStack.length - 1]); };
+$('redoBtn').onclick = () => { if (!future.length) return; const snap = future.pop(); undoStack.push(snap); applySnap(snap); };
+
 // 「＋ 重點／＋ 副重點／＋ 一般問題」：和 Notion 範本按鈕插入的格式一樣
 function field(tag, placeholder, value, onInput, cls) {
   const e = document.createElement(tag); e.placeholder = placeholder; e.value = value || ''; if (cls) e.className = cls;
@@ -244,6 +287,71 @@ function linkList(holder) {
   paint();
   return box;
 }
+// ===== 圖片 =====
+let curTarget = null; // 目前正在寫的那一格（小重點或一般問題）
+function compressImage(file) { // 縮到最長 1600px、轉成 JPEG，上傳比較快
+  return new Promise((resolve, reject) => {
+    const img = new Image(); const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const k = Math.min(1, 1600 / Math.max(img.width, img.height));
+      const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+      resolve(c.toDataURL('image/jpeg', 0.85));
+    };
+    img.onerror = () => reject(new Error('讀不到這張圖片'));
+    img.src = url;
+  });
+}
+async function addImageTo(holder, file, extra = {}) {
+  if (!holder) return msg('先點一下要放圖片的那一格（小重點或一般問題）');
+  try {
+    const data = await compressImage(file);
+    (holder.images ||= []).push({ data, caption: extra.caption || '', link: extra.link || '' });
+    saveDraft(); renderFields(currentSecVals()); msg('🖼️ 圖片放進去了');
+  } catch (e) { msg(e.message); }
+}
+function currentSecVals() { const v = {}; document.querySelectorAll('#noteFields textarea[data-id]').forEach((t) => { v[t.dataset.id] = t.value; }); return v; }
+function imageList(holder) {
+  holder.images ||= [];
+  const box = document.createElement('div'); box.className = 'imgs';
+  holder.images.forEach((im, k) => {
+    const fig = document.createElement('figure'); fig.className = 'img-item';
+    const pic = document.createElement('img'); pic.src = im.data || ''; pic.alt = '';
+    const cap = field('input', '圖片說明（可空白）', im.caption, (v) => { im.caption = v; });
+    fig.append(pic, cap, smallBtn('✕', () => { holder.images.splice(k, 1); saveDraft(); renderFields(currentSecVals()); }, 'del-mini'));
+    box.append(fig);
+  });
+  box.append(smallBtn('＋ 圖片', () => { curTarget = holder; pendingExtra = {}; $('imgPick').click(); }, 'add-btn tiny'));
+  return box;
+}
+let pendingExtra = {};
+$('imgPick').onchange = () => { const f = $('imgPick').files[0]; $('imgPick').value = ''; if (f) addImageTo(curTarget, f, pendingExtra); };
+// 貼上圖片：在筆記本裡貼上（例如複製的截圖），放進正在寫的那一格
+$('noteSheet').addEventListener('paste', (e) => {
+  const f = [...(e.clipboardData?.files || [])].find((x) => x.type.startsWith('image/'));
+  if (!f) return;
+  e.preventDefault();
+  addImageTo(curTarget, f);
+});
+
+// ===== 影片截圖：記下目前播放時間，選手機截圖放進正在寫的那一格 =====
+let ytTime = 0, ytId = null;
+window.addEventListener('message', (e) => {
+  if (!/youtube(-nocookie)?\.com$/.test(new URL(e.origin).hostname)) return;
+  try { const d = typeof e.data === 'string' ? JSON.parse(e.data) : e.data; if (d?.info && typeof d.info.currentTime === 'number') ytTime = d.info.currentTime; } catch {}
+});
+function listenYouTube() { // 請 YouTube 播放器回報目前時間
+  const f = $('notePlayer').querySelector('iframe');
+  if (f) f.contentWindow?.postMessage(JSON.stringify({ event: 'listening', id: 1 }), '*');
+}
+$('snapBtn').onclick = () => {
+  if (!curTarget) return msg('先點一下要放截圖的那一格（小重點或一般問題）');
+  const t = Math.floor(ytTime), mm = Math.floor(t / 60), ss = String(t % 60).padStart(2, '0');
+  pendingExtra = ytId ? { caption: `⏱️ ${mm}:${ss}`, link: `https://youtu.be/${ytId}?t=${t}` } : {};
+  msg(ytId ? `⏱️ 記下 ${mm}:${ss}，請選剛剛的手機截圖` : '請選要放的圖片');
+  $('imgPick').click();
+};
+
 function buildPreset(sec, kind) {
   const wrap = document.createElement('div'); wrap.className = 'note-sec preset';
   const head = document.createElement('div'); head.className = 'note-sec-head'; head.innerHTML = '<span></span>'; head.firstChild.textContent = sec.text;
@@ -270,7 +378,9 @@ function buildPreset(sec, kind) {
         card.append(t, n); list.append(card); return;
       }
       if (kind === 'qa') {
-        card.append(del, field('input', '問題（預設「?」）', it.q, (v) => { it.q = v; }), field('textarea', '答案／筆記', it.a, (v) => { it.a = v; }), linkList(it));
+        card.append(del, field('input', '問題（預設「?」）', it.q, (v) => { it.q = v; }), field('textarea', '答案／筆記', it.a, (v) => { it.a = v; }), imageList(it), linkList(it));
+        card.addEventListener('focusin', () => { curTarget = it; markTarget(card); }); card.addEventListener('pointerdown', () => { curTarget = it; markTarget(card); });
+        if (curTarget === it) card.classList.add('target');
       } else {
         const subs = document.createElement('div'); subs.className = 'subs';
         const paintSubs = () => {
@@ -280,7 +390,9 @@ function buildPreset(sec, kind) {
             row.append(smallBtn('✕', () => { it.subs.splice(j, 1); paintSubs(); saveDraft(); }, 'del-mini'),
               field('input', '小重點標題', sb.title, (v) => { sb.title = v; }), field('textarea', '內容', sb.text, (v) => { sb.text = v; }));
             // 程式筆記用：小重點裡加一個程式碼／提示詞框（存成 Notion 的程式碼區塊）
-            row.append(linkList(sb));
+            row.append(imageList(sb), linkList(sb));
+            row.addEventListener('focusin', () => { curTarget = sb; markTarget(row); }); row.addEventListener('pointerdown', (ev) => { ev.stopPropagation(); curTarget = sb; markTarget(row); });
+            if (curTarget === sb) row.classList.add('target');
             if (sb.code !== undefined) {
               const lang = document.createElement('select'); lang.className = 'code-lang';
               ['xml', 'plain text', 'markdown', 'javascript', 'python', 'html', 'css', 'json', 'bash', 'sql'].forEach((l) => lang.add(new Option(l === 'plain text' ? '純文字' : l.toUpperCase(), l)));
@@ -426,7 +538,7 @@ function closeNote() { $('noteSheet').hidden = true; $('noteBg').hidden = true; 
 // 影片網址 → 可以嵌入播放的網址（只接受這三個平台）
 function embedSrc(v) {
   if (!v || !v.id || !/^[\w-]+$/.test(v.id)) return null;
-  if (v.platform === 'YouTube') return `https://www.youtube-nocookie.com/embed/${v.id}?playsinline=1&rel=0`;
+  if (v.platform === 'YouTube') return `https://www.youtube-nocookie.com/embed/${v.id}?playsinline=1&rel=0&enablejsapi=1&origin=${encodeURIComponent(location.origin)}`;
   if (v.platform === 'IG') { const m = (v.url || '').match(/instagram\.com\/(p|reel|tv)\/([\w-]+)/); return m ? `https://www.instagram.com/${m[1]}/${m[2]}/embed/` : null; }
   if (v.platform === 'Threads' && !v.share) { const m = (v.url || '').match(/threads\.com\/(@[\w.]+)\/post\/([\w-]+)/); return m ? `https://www.threads.com/${m[1]}/post/${m[2]}/embed` : null; }
   return null;
@@ -443,7 +555,8 @@ async function saveNote(markDone) {
     else if (t.value.trim()) sections[sid] = t.value; // 原本沒有，新加
   });
   const hasLink = (o) => (o.links || []).some((u) => /^https?:\/\//.test(u || ''));
-  const filled = (x) => x.kind === 'qa' ? (x.q || x.a || hasLink(x)) : (x.title || (x.subs || []).some((s2) => s2.title || s2.text || s2.code || hasLink(s2)));
+  const hasImg = (o) => (o.images || []).length > 0;
+  const filled = (x) => x.kind === 'qa' ? (x.q || x.a || hasLink(x) || hasImg(x)) : (x.title || (x.subs || []).some((s2) => s2.title || s2.text || s2.code || hasLink(s2) || hasImg(s2)));
   const items = {}, deleted = {}, reorder = [];
   for (const [sid, list] of Object.entries(noteItems)) {
     const orig = origItems[sid] || {};
@@ -476,6 +589,10 @@ async function saveNote(markDone) {
   if (!changed && !markDone) return msg('沒有任何修改');
   $('noteSave').disabled = $('noteSaveDone').disabled = true; msg('存檔中…');
   try {
+    // 先把新圖片上傳到 Notion，再送出筆記
+    const pics = Object.values(items).flat().flatMap((x) => [x, ...(x.subs || [])]).flatMap((h) => h.images || []).filter((im) => im.data && !im.uploadId);
+    for (const [k, im] of pics.entries()) { msg(`上傳圖片 ${k + 1}/${pics.length}…`); im.uploadId = (await api('/api/upload', { dataUrl: im.data })).uploadId; }
+    for (const list of Object.values(items)) for (const x of list) for (const h of [x, ...(x.subs || [])]) if (h.images) h.images = h.images.map((im) => ({ uploadId: im.uploadId, caption: im.caption, link: im.link }));
     let r = { status: markDone ? 'done' : it.status };
     if (changed) r = await api('/api/organize/note', { id: it.id, text, sections, plain, items, deleted, reorder, markDone });
     else await api('/api/organize/status', { id: it.id, status: 'done' });
