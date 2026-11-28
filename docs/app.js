@@ -359,24 +359,36 @@ $('videoPreviewBtn').onclick = async () => {
     if (r.thumbnail) $('videoThumb').src = r.thumbnail;
     $('videoMeta').textContent = [r.platform, r.author && '作者：' + r.author, r.uploadDate && '上傳：' + r.uploadDate].filter(Boolean).join('　') + (r.caption ? '\n📝 ' + r.caption.slice(0, 80) + (r.caption.length > 80 ? '…' : '') : '');
     $('videoForm').hidden = false;
-    const kp = panel('knowledge'); await kp.ready; kp.reset();
-    // 抓到的影片資料蓋過範本預設；抓不到就保留範本的值
-    // 作者：用影片發布者的名字（已有這個標籤就直接選到，新的會自動新增）
-    if (r.author) kp.set('作者', [r.author.replace(/,/g, ' ')]);
-    if (r.uploadDate) kp.set('上傳日期', r.uploadDate);
-    kp.set('課堂筆記通路', r.platform === 'IG' ? 'IG' : 'YouTube');
-    kp.set('相關連結', r.url);
+    // 先等範本預設值套好，再填影片資料，才不會被範本洗掉
+    const kp = panel('knowledge'); await kp.ready;
+    await loadTemplates('knowledge'); await tplJobs.knowledge;
+    kp.reset();
+    videoAuto = r; fillVideoAuto();
     const shownTitle = $('videoTitle').value;
     aiSuggest('knowledge', [r.title && '標題：' + r.title, r.author && '頻道：' + r.author, r.platform, r.caption && '內文：' + r.caption].filter(Boolean).join('\n'),
       (t) => { if ($('videoTitle').value === shownTitle) $('videoTitle').value = t; }, !!r.caption);
     msg(r.title ? '選好欄位後按「確認送出」' : '抓不到標題（IG 常擋），可以自己填，或直接存');
   } catch (e) { msg(e.message); }
 };
+// 影片自動抓到的資料：蓋過範本預設；抓不到的就保留範本的值
+let videoAuto = null;
+function fillVideoAuto() {
+  const r = videoAuto; if (!r || $('videoForm').hidden) return;
+  const kp = panel('knowledge');
+  if (r.author) kp.set('作者', [r.author.replace(/,/g, ' ')]); // 影片發布者（已有標籤就選到，新的會自動新增）
+  if (r.uploadDate) kp.set('上傳日期', r.uploadDate);
+  kp.set('課堂筆記通路', r.platform === 'IG' ? 'IG' : 'YouTube');
+  kp.set('相關連結', r.url);
+}
+
 // 範本清單：每個資料庫第一次用到時讀取。知識庫預設「課堂筆記模板」，其他用 Notion 設的預設範本
 const tplLoaded = {};
-async function loadTemplates(db) {
-  if (tplLoaded[db]) return;
-  tplLoaded[db] = true;
+const tplJobs = {}; // 正在讀範本／套用範本的工作，讓別的地方可以等它做完
+function loadTemplates(db) {
+  if (!tplLoaded[db]) { tplLoaded[db] = true; tplJobs[db] = loadTemplatesNow(db); }
+  return tplJobs[db];
+}
+async function loadTemplatesNow(db) {
   const sel = $('tpl-' + db);
   try {
     const { templates } = await api('/api/templates?db=' + db);
@@ -403,9 +415,12 @@ async function applyTemplate(db) {
       msg(keys.length ? '已帶入範本預設：' + keys.join('、') : '這個範本沒有預先填好的欄位');
     } catch (e) { msg('範本預設值讀取失敗：' + e.message); }
   }
-  if ($('tpl-' + db).value === id) await panel(db).useTemplate(id ? values : null);
+  if ($('tpl-' + db).value === id) {
+    await panel(db).useTemplate(id ? values : null);
+    if (db === 'knowledge') fillVideoAuto(); // 換範本後，影片自動抓到的資料要補回來
+  }
 }
-['projects', 'tasks', 'knowledge'].forEach((db) => { $('tpl-' + db).onchange = () => applyTemplate(db); });
+['projects', 'tasks', 'knowledge'].forEach((db) => { $('tpl-' + db).onchange = () => { tplJobs[db] = applyTemplate(db); }; });
 
 const tplWait = (db) => ($('tpl-' + db).value ? '存檔中…（套用範本約需 5 秒）' : '存檔中…');
 
@@ -413,7 +428,7 @@ $('videoSaveBtn').onclick = async () => {
   $('videoSaveBtn').disabled = true; msg(tplWait('knowledge'));
   try {
     const r = await api('/api/video', { url: $('videoUrl').value.trim(), title: $('videoTitle').value, props: panel('knowledge').collect(), templateId: $('tpl-knowledge').value });
-    $('videoForm').hidden = true; $('videoUrl').value = '';
+    $('videoForm').hidden = true; $('videoUrl').value = ''; videoAuto = null;
     askOpen(r.url, '知識庫');
     msg('✅ 已存到「知識庫」');
   } catch (e) { msg(e.message); }
