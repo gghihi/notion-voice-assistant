@@ -137,7 +137,7 @@ function paintOrganize() {
 // 寫筆記：照這一頁的範本格式（段落標題）分段填；沒有範本格式就一整段加在最後面。草稿存在這台手機
 let noteItem = null, noteSections = [], noteItems = {};
 // 打開時 Notion 裡原本的內容，用來比對「改了哪些」
-let origItems = {}, origPlain = {};
+let origItems = {}, origPlain = {}, origOrder = {};
 const strip = (x) => JSON.stringify({ ...x, bid: undefined, locked: undefined, dirty: undefined });
 // 範本按鈕的對照：段落名稱有「大綱」→ 重點按鈕；有「回顧」或「問題」→ 一般問題
 const presetOf = (sec) => sec.preset !== undefined ? sec.preset : (!sec.hasButton ? null : /大綱/.test(sec.text) ? 'point' : /回顧|問題/.test(sec.text) ? 'qa' : null);
@@ -173,7 +173,7 @@ async function openNote(it) {
   if (video?.platform === 'IG' || video?.platform === 'Threads') $('notePlayer').classList.add('tall'); else $('notePlayer').classList.remove('tall');
   box.innerHTML = '';
   // 已經存進 Notion 的筆記先讀出來，可以直接修改（有沒存的草稿就先用草稿）
-  origItems = {}; origPlain = {};
+  origItems = {}; origPlain = {}; origOrder = {};
   const hasDraft = !!d.edited; // 只有真的動過才算草稿
   noteItems = hasDraft ? (d.items || {}) : {};
   for (const sec of noteSections) {
@@ -181,6 +181,7 @@ async function openNote(it) {
     if (!ex) continue;
     if (ex.items) {
       origItems[sec.id] = Object.fromEntries(ex.items.map((x) => [x.bid, strip(x)]));
+      origOrder[sec.id] = ex.items.map((x) => x.bid);
       if (!hasDraft) noteItems[sec.id] = JSON.parse(JSON.stringify(ex.items));
     } else if (ex.paraIds) origPlain[sec.id] = { text: ex.text || '', ids: ex.paraIds };
   }
@@ -191,11 +192,9 @@ async function openNote(it) {
     const wrap = document.createElement('label'); wrap.className = 'note-sec';
     const head = document.createElement('div'); head.className = 'note-sec-head';
     const name = document.createElement('span'); name.textContent = sec.text;
-    const mic = document.createElement('button'); mic.type = 'button'; mic.className = 'mini-mic'; mic.textContent = '🎤';
     const ta = document.createElement('textarea'); ta.rows = 3; ta.dataset.id = sec.id; ta.value = hasDraft ? ((d.sec || {})[sec.id] ?? origPlain[sec.id]?.text ?? '') : (origPlain[sec.id]?.text || '');
-    ta.placeholder = `寫進「${sec.text}」`; ta.addEventListener('input', saveDraft);
-    bindMic(mic, ta);
-    head.append(name, mic); wrap.append(head, ta); box.append(wrap);
+    ta.placeholder = `寫進「${sec.text}」`; ta.dataset.name = sec.text; ta.addEventListener('input', saveDraft);
+    head.append(name); wrap.append(head, ta); box.append(wrap);
   }
   // 有範本格式就照格式寫，不另外放「其他補充」
   const hasSections = !!box.children.length;
@@ -241,6 +240,14 @@ function buildPreset(sec, kind) {
       const card = document.createElement('div'); card.className = 'preset-card ' + kind;
       const del = smallBtn('✕', () => { if (it.bid && !confirm('要把這一項從 Notion 刪掉嗎？')) return; items.splice(idx, 1); paint(); saveDraft(); }, 'del-mini');
       if (it.bid) card.classList.add('saved');
+      // ⬆️⬇️ 調整順序（這一段有鎖住的項目時不能換，因為 Notion 沒辦法移動那一項）
+      if (!items.some((x) => x.locked) && items.length > 1) {
+        const mv = document.createElement('div'); mv.className = 'move';
+        const up = smallBtn('⬆️', () => { if (idx > 0) { [items[idx - 1], items[idx]] = [items[idx], items[idx - 1]]; paint(); saveDraft(); } }, 'mv-btn');
+        const dn = smallBtn('⬇️', () => { if (idx < items.length - 1) { [items[idx + 1], items[idx]] = [items[idx], items[idx + 1]]; paint(); saveDraft(); } }, 'mv-btn');
+        up.disabled = idx === 0; dn.disabled = idx === items.length - 1;
+        mv.append(up, dn); card.append(mv);
+      }
       if (it.locked) { // 裡面有圖片等 APP 不能編輯的內容：只顯示，避免改壞
         card.classList.add('locked');
         const t = document.createElement('b'); t.textContent = (kind === 'qa' ? (it.q || '?') : it.title) || '（無標題）';
@@ -295,7 +302,28 @@ function setMode(ai) {
   if (ai) renderPreview();
   $('noteFields').hidden = ai;
   if (ai) $('noteOther').hidden = true; else $('noteOther').hidden = !!$('noteFields').children.length;
-  $('noteMic').hidden = ai || !!$('noteFields').children.length;
+  $('noteMic').hidden = true; // 語音都在 AI 撰寫模式裡
+  if (ai) renderVoiceList();
+}
+// AI 模式的「單項語音」：每個文字段落一顆麥克風，說的話直接寫進那一段
+function renderVoiceList() {
+  const list = $('voiceList'); list.innerHTML = '';
+  const targets = [...document.querySelectorAll('#noteFields textarea[data-id]')];
+  if (!$('noteFields').children.length) { $('noteText').dataset.name = '筆記'; targets.push($('noteText')); }
+  $('voiceHead').hidden = !targets.length;
+  for (const ta of targets) {
+    const row = document.createElement('div'); row.className = 'voice-row';
+    const name = document.createElement('b'); name.textContent = ta.dataset.name || '筆記';
+    const snip = document.createElement('span'); snip.className = 'voice-snip';
+    const show = () => { snip.textContent = ta.value.trim() ? ta.value.trim().slice(-40) : '（還沒有內容）'; };
+    show();
+    const mic = document.createElement('button'); mic.type = 'button'; mic.className = 'mini-mic'; mic.textContent = '🎤';
+    bindMic(mic, ta);
+    ta._voiceShow = show;
+    if (!ta._voiceBound) { ta._voiceBound = true; ta.addEventListener('input', () => { ta._voiceShow?.(); if (!$('aiPanel').hidden) renderPreview(); }); }
+    const txt = document.createElement('div'); txt.append(name, snip);
+    row.append(txt, mic); list.append(row);
+  }
 }
 $('modeManual').onclick = () => setMode(false);
 $('modeAi').onclick = () => { if (!aiEnabled()) return msg('AI 小幫手在設定裡關掉了，打開後才能用'); setMode(true); };
@@ -396,10 +424,22 @@ async function saveNote(markDone) {
   });
   const hasLink = (o) => (o.links || []).some((u) => /^https?:\/\//.test(u || ''));
   const filled = (x) => x.kind === 'qa' ? (x.q || x.a || hasLink(x)) : (x.title || (x.subs || []).some((s2) => s2.title || s2.text || s2.code || hasLink(s2)));
-  const items = {}, deleted = {};
+  const items = {}, deleted = {}, reorder = [];
   for (const [sid, list] of Object.entries(noteItems)) {
     const orig = origItems[sid] || {};
     const out = [];
+    // 有沒有換順序：已存的項目順序變了，或新項目被移到已存項目前面
+    const saved = (list || []).map((x, i) => [x.bid, i]).filter(([b]) => b);
+    const before = (origOrder[sid] || []).filter((b) => saved.some(([x]) => x === b));
+    const lastSaved = saved.length ? saved[saved.length - 1][1] : -1;
+    const moved = saved.map(([b]) => b).join() !== before.join() || (list || []).some((x, i) => !x.bid && i < lastSaved && filled(x));
+    if (moved && !(list || []).some((x) => x.locked)) {
+      reorder.push(sid);
+      items[sid] = (list || []).filter((x) => x.bid || filled(x));
+      const gone = Object.keys(orig).filter((bid) => !(list || []).some((x) => x.bid === bid));
+      if (gone.length) deleted[sid] = gone;
+      continue;
+    }
     for (const x of list || []) {
       if (x.bid) { if (orig[x.bid] !== undefined && strip(x) !== orig[x.bid]) out.push({ ...x, dirty: true }); }
       else if (filled(x)) out.push(x);
@@ -412,12 +452,12 @@ async function saveNote(markDone) {
     if (!noteItems[sid]) { const gone = Object.keys(orig); if (gone.length) deleted[sid] = gone; }
   }
   const text = $('noteText').value.trim();
-  const changed = text || Object.keys(sections).length || Object.keys(plain).length || Object.keys(items).length || Object.keys(deleted).length;
+  const changed = text || Object.keys(sections).length || Object.keys(plain).length || Object.keys(items).length || Object.keys(deleted).length || reorder.length;
   if (!changed && !markDone) return msg('沒有任何修改');
   $('noteSave').disabled = $('noteSaveDone').disabled = true; msg('存檔中…');
   try {
     let r = { status: markDone ? 'done' : it.status };
-    if (changed) r = await api('/api/organize/note', { id: it.id, text, sections, plain, items, deleted, markDone });
+    if (changed) r = await api('/api/organize/note', { id: it.id, text, sections, plain, items, deleted, reorder, markDone });
     else await api('/api/organize/status', { id: it.id, status: 'done' });
     try { localStorage.removeItem(draftKey(it.id)); } catch {}
     it.status = r.status; closeNote(); paintOrganize();

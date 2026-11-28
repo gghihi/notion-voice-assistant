@@ -148,7 +148,8 @@ export default {
         const editItems = body?.items && typeof body.items === 'object' ? Object.entries(body.items).filter(([, v]) => Array.isArray(v)) : [];
         const deleted = body?.deleted && typeof body.deleted === 'object' ? body.deleted : {};
         const plainEdits = body?.plain && typeof body.plain === 'object' ? Object.entries(body.plain).filter(([, v]) => v && typeof v.text === 'string') : [];
-        const items = editItems.filter(([, v]) => v.some((x) => !x.bid || x.dirty)).map(([k, v]) => [k, v]);
+        const reorderSet = Array.isArray(body?.reorder) ? body.reorder : [];
+        const items = editItems.filter(([k, v]) => reorderSet.includes(k) || v.some((x) => !x.bid || x.dirty)).map(([k, v]) => [k, v]);
         const total = text.length + sections.reduce((n, [, v]) => n + v.length, 0) + JSON.stringify(body?.items || {}).length / 4;
         const anyDelete = Object.values(deleted).some((v) => Array.isArray(v) && v.length);
         if (!text && !sections.length && !items.length && !plainEdits.length && !anyDelete) return json({ error: '沒有要存的變更' }, 400, h);
@@ -168,7 +169,7 @@ export default {
             if (!sec) continue;
             const list = (items.find(([k]) => k === sid) || [, []])[1];
             if (sec.toggle) { const nb = itemBlocks(list.filter((x) => !x.bid)); if (nb.length) await appendBlocks(env, sid, nb); }
-            else await saveSectionItems(env, pid, blocks, sec, list, Array.isArray(deleted[sid]) ? deleted[sid] : []);
+            else await saveSectionItems(env, pid, blocks, sec, list, Array.isArray(deleted[sid]) ? deleted[sid] : [], Array.isArray(body.reorder) && body.reorder.includes(sid));
             blocks = await listChildren(env, pid);
           }
           // 一般段落：整段改寫

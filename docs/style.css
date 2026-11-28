@@ -303,3 +303,10 @@ body[data-tab="org"] { --accent:var(--c-blue); --accent-soft:var(--c-blue-bg); }
 .note-preview p { margin:4px 0 4px 20px; white-space:pre-line; }
 .note-preview pre { margin:6px 0 6px 20px; padding:8px 10px; background:#f7f6f3; border-radius:6px; font-size:13px; white-space:pre-wrap; }
 .note-preview .pv-link { color:#2f80ed; word-break:break-all; }
+.move { display:flex; gap:6px; }
+.mv-btn { width:34px; height:28px; padding:0; border:1.5px solid var(--ink); border-radius:8px; background:var(--paper); font-size:14px; }
+.mv-btn:disabled { opacity:.3; }
+.voice-list { display:grid; gap:8px; }
+.voice-row { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:10px 12px; border:2px solid var(--ink); border-radius:12px; background:var(--paper); }
+.voice-row > div { display:grid; min-width:0; }
+.voice-snip { font-size:13px; color:var(--text-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }

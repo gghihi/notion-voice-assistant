@@ -19,7 +19,7 @@ function fakeNotion() {
   const calls = [];
   globalThis.fetch = async (url, init) => {
     const path = url.replace('https://api.notion.com/v1', '');
-    calls.push([init.method, path]);
+    calls.push([init.method, path, init.body]);
     const m = path.match(/^\/blocks\/(\w+)\/children/);
     if (init.method === 'GET' && m) return new Response(JSON.stringify({ results: m[1] === 'PAGE' ? PAGE : KIDS[m[1]] || [] }));
     return new Response('{}');
@@ -47,4 +47,15 @@ test('修改：刪掉的移除、改過的原地換掉、新的放按鈕上方�
   assert.deepEqual(del, ['/blocks/P2', '/blocks/P1']); // H2 不在這一段，不會被刪
   assert.equal(calls.filter((c) => c[0] === 'PATCH').length, 2);
   assert.deepEqual(sectionRange(PAGE, 'H').map((b) => b.id), ['P1', 'P2', 'BTN']);
+});
+
+test('換順序：刪掉舊的，照新順序一次放回按鈕上方', async () => {
+  const calls = fakeNotion();
+  await saveSectionItems({ NOTION_TOKEN: 'x' }, 'PAGE', PAGE, { id: 'H' }, [
+    { bid: 'P2', kind: 'point', title: '重點二', subs: [] },
+    { bid: 'P1', kind: 'point', title: '重點一', subs: [] },
+  ], [], true);
+  assert.deepEqual(calls.filter((c) => c[0] === 'DELETE').map((c) => c[1]), ['/blocks/P2', '/blocks/P1']);
+  const patch = calls.filter((c) => c[0] === 'PATCH');
+  assert.equal(patch.length, 1);
 });

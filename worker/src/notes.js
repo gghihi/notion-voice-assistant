@@ -78,9 +78,16 @@ export async function readSection(env, blocks, sec) {
  * - 有 bid 且改過的：刪掉舊的、在原位置放新的
  * - 沒有 bid 的：新的，放在按鈕上方
  */
-export async function saveSectionItems(env, pid, blocks, sec, list, deleted) {
+export async function saveSectionItems(env, pid, blocks, sec, list, deleted, reorder = false) {
   const allowed = new Set(sectionRange(blocks, sec.id).map((b) => b.id));
   for (const bid of deleted || []) if (allowed.has(bid)) await deleteBlock(env, bid);
+  // 換了順序：把這一段 APP 管的項目全部照新順序重放（Notion 沒有「移動區塊」的功能）
+  if (reorder && !list.some((it) => it.locked)) {
+    for (const it of list) if (it.bid && allowed.has(it.bid)) await deleteBlock(env, it.bid);
+    const nb = itemBlocks(list.map((it) => ({ ...it, bid: undefined })));
+    if (nb.length) await insertAfter(env, pid, sectionAnchor(await listChildren(env, pid), sec.id), nb);
+    return;
+  }
   for (const it of list) {
     if (!it.bid || !it.dirty || !allowed.has(it.bid) || it.locked) continue;
     const idx = blocks.findIndex((b) => b.id === it.bid);
