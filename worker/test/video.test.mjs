@@ -51,3 +51,8 @@ test('IG 發布者：中文「在 Instagram」也抓得到', async () => {
   assert.equal(info.author, 'AI 主理人');
   assert.equal(info.title, '你用 AI 做的網站，駭客會先試這 12 招。');
 });
+
+test('內文不會存進 Notion 頁面', () => {
+  const p = buildPage({ KNOWLEDGE_DS: 'ds' }, detect('https://www.instagram.com/reel/X1/'), { title: 'T', caption: '很長的內文' }, '課堂筆記');
+  assert.equal(JSON.stringify(p.children).includes('很長的內文'), false);
+});

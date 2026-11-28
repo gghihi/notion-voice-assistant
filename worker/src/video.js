@@ -108,8 +108,7 @@ export function buildPage(env, v, info, kind) {
         { object: 'block', type: 'embed', embed: { url: v.url } },
         { object: 'block', type: 'bookmark', bookmark: { url: v.url } },
       ];
-  // IG 內文也存進頁面，日後不用回 IG 也看得到
-  if (info.caption) children.push({ object: 'block', type: 'quote', quote: { rich_text: [{ type: 'text', text: { content: info.caption.slice(0, 1900) } }] } });
+  // 內文只拿來讓 AI 取標題，不存進 Notion 頁面
   const page = { parent: { type: 'data_source_id', data_source_id: env.KNOWLEDGE_DS }, properties: props, children };
   if (info.thumbnail && /^https:\/\//.test(info.thumbnail)) page.cover = { type: 'external', external: { url: info.thumbnail } };
   return page;
