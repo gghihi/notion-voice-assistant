@@ -131,6 +131,20 @@
     <p class="hint">最近 7 天存進 Notion 的東西，滿 7 天會自動撕掉。點標題可以打開 Notion。</p>
     <div class="notes" id="boardList"></div>
   </section>
+  <div class="sheet-bg" id="noteBg" hidden></div>
+  <section class="sheet" id="noteSheet" hidden aria-label="寫筆記">
+    <div class="sheet-head"><h2>📝 寫筆記</h2><button class="x" id="noteClose" type="button" aria-label="收起">✕</button></div>
+    <a class="note-for" id="noteFor" href="#" target="_blank" rel="noopener"></a>
+    <textarea id="noteText" rows="9" placeholder="看完有什麼重點、心得、想試的事？打字或按麥克風用說的。沒寫完關掉也會幫你留著草稿。"></textarea>
+    <div class="row">
+      <button class="ghost mic" data-for="noteText" type="button">🎤 說話</button>
+      <span class="note-count" id="noteCount">0 字</span>
+    </div>
+    <div class="note-actions">
+      <button class="pill danger" id="noteSave" type="button">存進 Notion（整理中）</button>
+      <button class="pill" id="noteSaveDone" type="button">存進 Notion 並完成 ✅</button>
+    </div>
+  </section>
   <div class="sheet-bg" id="delBg" hidden></div>
   <section class="ask" id="del" hidden role="dialog" aria-label="刪除">
     <div class="ask-emoji">🗑️</div>

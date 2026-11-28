@@ -126,11 +126,48 @@ function paintOrganize() {
         };
         seg.append(b);
       }
-      row.append(title, meta, seg); g.append(row);
+      const write = document.createElement('button'); write.type = 'button'; write.className = 'write-btn segb'; write.textContent = '📝 寫筆記';
+      write.onclick = () => openNote(it);
+      const actions = document.createElement('div'); actions.className = 'org-actions'; actions.append(seg, write);
+      row.append(title, meta, actions); g.append(row);
     }
     list.append(g);
   }
 }
+// 寫筆記：在 APP 裡寫完直接加到那一頁 Notion 的最後面（草稿存在這台手機）
+let noteItem = null;
+const draftKey = (id) => 'draft-' + id;
+function openNote(it) {
+  noteItem = it;
+  $('noteFor').textContent = '📚 ' + it.title; $('noteFor').href = it.url || '#';
+  try { $('noteText').value = localStorage.getItem(draftKey(it.id)) || ''; } catch { $('noteText').value = ''; }
+  $('noteCount').textContent = $('noteText').value.length + ' 字';
+  $('noteSheet').hidden = false; $('noteBg').hidden = false;
+  setTimeout(() => $('noteText').focus(), 300);
+}
+function closeNote() { $('noteSheet').hidden = true; $('noteBg').hidden = true; noteItem = null; }
+$('noteText').addEventListener('input', () => {
+  $('noteCount').textContent = $('noteText').value.length + ' 字';
+  if (noteItem) { try { localStorage.setItem(draftKey(noteItem.id), $('noteText').value); } catch {} }
+});
+$('noteClose').onclick = closeNote; $('noteBg').onclick = closeNote;
+async function saveNote(markDone) {
+  const text = $('noteText').value.trim();
+  if (!noteItem) return;
+  if (!text) return msg('先寫點東西吧');
+  const it = noteItem;
+  $('noteSave').disabled = $('noteSaveDone').disabled = true; msg('存檔中…');
+  try {
+    const r = await api('/api/organize/note', { id: it.id, text, markDone });
+    try { localStorage.removeItem(draftKey(it.id)); } catch {}
+    it.status = r.status; closeNote(); paintOrganize();
+    msg(markDone ? '✅ 筆記已存進 Notion，這則整理完成！' : '✅ 筆記已存進 Notion');
+  } catch (e) { msg(e.message); }
+  finally { $('noteSave').disabled = $('noteSaveDone').disabled = false; }
+}
+$('noteSave').onclick = () => saveNote(false);
+$('noteSaveDone').onclick = () => saveNote(true);
+
 async function loadOrganize() {
   if (!getToken()) return;
   $('orgList').innerHTML = '<p class="empty-org">讀取中…</p>';

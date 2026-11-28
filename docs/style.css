@@ -214,3 +214,15 @@ body[data-tab="org"] { --accent:var(--c-blue); --accent-soft:var(--c-blue-bg); }
 #app .seg button { background:var(--paper); color:var(--text); border:0; border-radius:0; box-shadow:none; padding:5px 12px; font-size:13px; font-weight:800; transform:none; }
 #app .seg button + button { border-left:2px solid var(--ink); }
 #app .seg button.on { background:var(--accent); color:#fff; }
+/* 寫筆記 */
+.org-actions { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+#app .write-btn { border:2px solid var(--ink); border-radius:999px; padding:5px 12px; background:var(--yellow); color:#111; font-size:13px; font-weight:800; box-shadow:var(--shadow-sm); }
+#app .write-btn:active { transform:translate(2px,2px); box-shadow:none; }
+.note-for { display:block; margin:4px 0 10px; font-weight:800; color:var(--text); text-decoration:none; }
+#noteText { min-height:200px; box-shadow:none; }
+.note-count { font-size:13px; color:var(--text-2); }
+.note-actions { display:grid; gap:10px; margin-top:14px; }
+.note-actions .pill { padding:10px 14px; }
+#noteSheet { z-index:21; } #noteBg { z-index:20; }
+#noteSheet .mic { border:2px solid var(--ink); border-radius:12px; padding:9px 16px; background:var(--paper); color:var(--text); font-weight:700; box-shadow:var(--shadow-sm); }
+#noteSheet .mic.recording { background:#ff5a5a; color:#fff; }

@@ -148,3 +148,8 @@ export async function trashPage(env, pageId) {
 export async function updatePageProps(env, pageId, properties) {
   await call(env, '/pages/' + pageId, 'PATCH', { properties });
 }
+
+// 在頁面最後面加內容
+export async function appendBlocks(env, pageId, children) {
+  await call(env, '/blocks/' + pageId + '/children', 'PATCH', { children });
+}

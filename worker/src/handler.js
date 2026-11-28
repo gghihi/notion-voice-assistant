@@ -1,6 +1,6 @@
 // 後端入口：只開放少數幾個網址，每個（除了登入）都要有效通行證。
 import { checkPassword, issueToken, verifyToken } from './auth.js';
-import { checkDataSources, createNote, createTask, createPage, listTemplates, createPageWithTemplate, getDataSource, searchPages, getPage, pageTitle, pageIdFromUrl, trashPage, updatePageProps } from './notion.js';
+import { checkDataSources, createNote, createTask, createPage, listTemplates, createPageWithTemplate, getDataSource, searchPages, getPage, pageTitle, pageIdFromUrl, trashPage, updatePageProps, appendBlocks, paragraphs } from './notion.js';
 import { DBS, describe, toNotionProps, fromNotionProps } from './fields.js';
 import { STATUS_TO_NOTION } from './organize.js';
 import { detect, fetchInfo, buildPage, CHANNEL, resolveShare } from './video.js';
@@ -101,6 +101,27 @@ export default {
       }
       if (url.pathname === '/api/organize' && req.method === 'GET') {
         return json({ items: await store(env).organizeWithStatus() }, 200, h);
+      }
+      if (url.pathname === '/api/organize/note' && req.method === 'POST') {
+        const body = await readJson(req);
+        const text = typeof body?.text === 'string' ? body.text.trim() : '';
+        if (!text) return json({ error: '筆記是空的' }, 400, h);
+        if (text.length > MAX_TEXT) return json({ error: '筆記太長（上限 5000 字）' }, 400, h);
+        // 只能寫進「整理庫裡有的」頁面
+        const item = await store(env).getOrganize(body.id);
+        const pid = item && pageIdFromUrl(item.url);
+        if (!pid) return json({ error: '找不到這筆，可能已經超過 7 天' }, 404, h);
+        const t = new Date(Date.now() + 8 * 3600000);
+        const stamp = `${t.getUTCMonth() + 1}/${t.getUTCDate()} ${String(t.getUTCHours()).padStart(2, '0')}:${String(t.getUTCMinutes()).padStart(2, '0')}`;
+        await appendBlocks(env, pid, [
+          { object: 'block', type: 'heading_3', heading_3: { rich_text: [{ type: 'text', text: { content: `📝 我的筆記（${stamp}）` } }] } },
+          ...paragraphs(text).slice(0, 99),
+        ]);
+        // 寫了筆記就算「整理中」；選了「完成」就標記完成
+        const status = body.markDone ? 'done' : 'doing';
+        const props = { ...STATUS_TO_NOTION[status] };
+        try { await updatePageProps(env, pid, props); } catch (e) { if (e.status !== 400) throw e; delete props.Done; await updatePageProps(env, pid, props).catch(() => {}); }
+        return json({ ok: true, status }, 200, h);
       }
       if (url.pathname === '/api/organize/status' && req.method === 'POST') {
         const body = await readJson(req);
