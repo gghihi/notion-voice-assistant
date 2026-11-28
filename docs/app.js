@@ -48,14 +48,13 @@ $('pageIcon').onclick = () => {
 // 存好後問要不要打開 Notion（等寫字聲和彩帶跑完再跳出來）
 // AI 小幫手：預設開啟，設定裡可以關掉
 const aiEnabled = () => { try { return localStorage.getItem('ai') !== '0'; } catch { return true; } };
-// 把 AI 建議填進確認卡：可複選的和原本的值合併，單選只在空白時填
+// 把 AI 建議填進確認卡：AI 有給的欄位，以 AI 為準（蓋過範本預設）；AI 沒給的欄位保留範本的值
+const lastAi = {};
 async function applyAi(db, props) {
   const p = panel(db); await p.ready;
-  const cur = p.collect();
-  for (const [k, v] of Object.entries(props || {})) {
-    if (Array.isArray(v)) p.set(k, [...new Set([...(cur[k] || []), ...v])]);
-    else if (!cur[k]) p.set(k, v);
-  }
+  await tplJobs[db]; // 等範本預設值先套好，AI 再蓋上去
+  lastAi[db] = props || {};
+  for (const [k, v] of Object.entries(lastAi[db])) p.set(k, v);
 }
 // 確認卡最上面那行：顯示 AI 做了什麼，或為什麼沒做
 function aiNote(db, text, kind = 'ok') {
@@ -237,6 +236,7 @@ $('noteNextBtn').onclick = () => {
   if (!text) return msg('先寫點東西吧');
   $('noteTitle').value = text.split('\n')[0].slice(0, 40);
   $('noteForm').hidden = false;
+  lastAi.projects = {};
   panel('projects'); loadTemplates('projects');
   msg('選好欄位後按「確認送出」');
   const typed = $('noteTitle').value;
@@ -246,7 +246,7 @@ $('saveBtn').onclick = async () => {
   const text = $('text').value.trim();
   if (!text) return msg('先寫點東西吧');
   $('saveBtn').disabled = true; msg(tplWait('projects'));
-  try { const r = await api('/api/note', { text, title: $('noteTitle').value, props: panels.projects ? panels.projects.collect() : undefined, templateId: $('tpl-projects').value }); $('text').value = ''; $('noteForm').hidden = true; panels.projects?.reset(); msg('✅ 已存到「專案庫」'); askOpen(r.url, '專案庫'); }
+  try { const r = await api('/api/note', { text, title: $('noteTitle').value, props: panels.projects ? panels.projects.collect() : undefined, templateId: $('tpl-projects').value }); $('text').value = ''; $('noteForm').hidden = true; lastAi.projects = {}; panels.projects?.reset(); msg('✅ 已存到「專案庫」'); askOpen(r.url, '專案庫'); }
   catch (e) { msg(e.message); }
   finally { $('saveBtn').disabled = false; }
 };
@@ -316,7 +316,7 @@ $('planSaveBtn').onclick = async () => {
   $('planSaveBtn').disabled = true; msg(tplWait('tasks'));
   try {
     const r = await api('/api/schedule', { title: $('planTitle').value, at, remind: before >= 0, remindBefore: Math.max(before, 0), props: panel('tasks').collect(), templateId: $('tpl-tasks').value });
-    panel('tasks').reset();
+    lastAi.tasks = {}; panel('tasks').reset();
     $('planText').value = ''; $('planForm').hidden = true;
     msg('✅ 已存到「任務庫」' + (before >= 0 ? '，時間到會通知你' : ''));
     askOpen(r.url, '任務庫');
@@ -363,7 +363,7 @@ $('videoPreviewBtn').onclick = async () => {
     const kp = panel('knowledge'); await kp.ready;
     await loadTemplates('knowledge'); await tplJobs.knowledge;
     kp.reset();
-    videoAuto = r; fillVideoAuto();
+    lastAi.knowledge = {}; videoAuto = r; fillVideoAuto();
     const shownTitle = $('videoTitle').value;
     aiSuggest('knowledge', [r.title && '標題：' + r.title, r.author && '頻道：' + r.author, r.platform, r.caption && '內文：' + r.caption].filter(Boolean).join('\n'),
       (t) => { if ($('videoTitle').value === shownTitle) $('videoTitle').value = t; }, !!r.caption);
@@ -371,7 +371,7 @@ $('videoPreviewBtn').onclick = async () => {
   } catch (e) { msg(e.message); }
 };
 // 影片自動抓到的資料：蓋過範本預設；抓不到的就保留範本的值
-let videoAuto = null;
+let videoAuto = null; lastAi.knowledge = {};
 function fillVideoAuto() {
   const r = videoAuto; if (!r || $('videoForm').hidden) return;
   const kp = panel('knowledge');
@@ -418,6 +418,7 @@ async function applyTemplate(db) {
   if ($('tpl-' + db).value === id) {
     await panel(db).useTemplate(id ? values : null);
     if (db === 'knowledge') fillVideoAuto(); // 換範本後，影片自動抓到的資料要補回來
+    const p = panel(db); for (const [k, v] of Object.entries(lastAi[db] || {})) p.set(k, v); // AI 建議也補回來（以 AI 為準）
   }
 }
 ['projects', 'tasks', 'knowledge'].forEach((db) => { $('tpl-' + db).onchange = () => { tplJobs[db] = applyTemplate(db); }; });
@@ -428,7 +429,7 @@ $('videoSaveBtn').onclick = async () => {
   $('videoSaveBtn').disabled = true; msg(tplWait('knowledge'));
   try {
     const r = await api('/api/video', { url: $('videoUrl').value.trim(), title: $('videoTitle').value, props: panel('knowledge').collect(), templateId: $('tpl-knowledge').value });
-    $('videoForm').hidden = true; $('videoUrl').value = ''; videoAuto = null;
+    $('videoForm').hidden = true; $('videoUrl').value = ''; videoAuto = null; lastAi.knowledge = {};
     askOpen(r.url, '知識庫');
     msg('✅ 已存到「知識庫」');
   } catch (e) { msg(e.message); }
