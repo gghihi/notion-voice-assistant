@@ -86,15 +86,15 @@ const SUGGEST = {
 };
 
 /** 專案／知識庫：建議標題與分類（只從現有選項挑） */
-export async function aiSuggest(env, db, text, fields, now = Date.now()) {
-  const cfg = SUGGEST[db];
-  if (!cfg) throw new AiError('off');
+export async function aiSuggest(env, db, text, fields, now = Date.now(), opts = {}) {
+  const cfg = { ...SUGGEST[db], ...(opts.wantTitle ? { wantTitle: true } : {}) };
+  if (!SUGGEST[db]) throw new AiError('off');
   const keys = cfg.allow.map((n) => `"${n}": ${fields.find((f) => f.name === n)?.type === 'select' ? '一個選項或 null' : '選項陣列（最多 5 個，沒適合的就 []）'}`).join(', ');
   const dateKey = cfg.date && fields.some((f) => f.name === cfg.date) ? cfg.date : null;
   const prompt = `你是${cfg.role}助理，幫使用者整理 Notion 資料。現在是台灣時間 ${twIso(now)}。
 內容：「${text.slice(0, 3000)}」
 請回傳 JSON：{${cfg.wantTitle ? '"title": 標題（25 字內）, ' : ''}${dateKey ? `"${dateKey}": 內容提到的日期（YYYY-MM-DD，沒提到就 null）, ` : ''}${keys}}
-${cfg.wantTitle ? TITLE_RULE + '\n' : ''}分類只能從下列選項挑，不要自己發明；不確定就留空。
+${cfg.wantTitle ? (db === 'knowledge' ? '標題規則：依影片內文的重點，寫一個讓人一看就知道在講什麼的標題，不要照抄開頭、不要 hashtag。例：內文在講「AI 做的網站常見的 12 種被攻擊方式與檢查清單」→「AI 做的網站常見的 12 個資安漏洞」。' : TITLE_RULE) + '\n' : ''}分類只能從下列選項挑，不要自己發明；不確定就留空。
 ${optionsText(fields, cfg.allow)}`;
   const r = await askGemini(env, prompt);
   const props = filterSuggestions(r, fields, cfg.allow);

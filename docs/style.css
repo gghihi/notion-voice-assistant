@@ -188,3 +188,4 @@ h1 { font-size:clamp(24px, 7.4vw, 34px); white-space:nowrap; }
 .ai-note[data-kind="warn"] { background:var(--soft); }
 .ai-note[data-kind="wait"] { animation:pulseBg 1s ease-in-out infinite alternate; }
 @keyframes pulseBg { to { opacity:.55; } }
+#videoMeta { white-space:pre-line; }

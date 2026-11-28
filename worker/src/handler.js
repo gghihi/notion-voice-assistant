@@ -81,7 +81,7 @@ export default {
         if (!['projects', 'knowledge'].includes(db) || !text) return json({ error: '資料不完整' }, 400, h);
         try {
           const fields = describe(db, await getDataSource(env, env[DBS[db].env]));
-          return json({ ...(await aiSuggest(env, db, text, fields)), ai: true }, 200, h);
+          return json({ ...(await aiSuggest(env, db, text, fields, Date.now(), { wantTitle: body.wantTitle === true })), ai: true }, 200, h);
         } catch (e) {
           if (e.kind) return json({ props: {}, notice: aiNotice(e) }, 200, h);
           throw e;

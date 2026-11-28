@@ -62,12 +62,12 @@ function aiNote(db, text, kind = 'ok') {
   const el = $('ai-' + db); if (!el) return;
   el.hidden = !text; el.textContent = text || ''; el.dataset.kind = kind;
 }
-async function aiSuggest(db, text, onTitle) {
+async function aiSuggest(db, text, onTitle, wantTitle = false) {
   if (!aiEnabled()) return aiNote(db, '');
   if (!text) return;
   aiNote(db, '✨ AI 整理中…', 'wait');
   try {
-    const r = await api('/api/ai/suggest', { db, text });
+    const r = await api('/api/ai/suggest', { db, text, wantTitle });
     if (r.notice) return aiNote(db, '🤖 ' + r.notice, 'warn');
     if (r.title && onTitle) onTitle(r.title);
     await applyAi(db, r.props);
@@ -357,7 +357,7 @@ $('videoPreviewBtn').onclick = async () => {
     $('videoTitle').value = r.title || '';
     $('videoThumb').hidden = !r.thumbnail;
     if (r.thumbnail) $('videoThumb').src = r.thumbnail;
-    $('videoMeta').textContent = [r.platform, r.author && '頻道：' + r.author, r.uploadDate && '上傳：' + r.uploadDate].filter(Boolean).join('　');
+    $('videoMeta').textContent = [r.platform, r.author && '頻道：' + r.author, r.uploadDate && '上傳：' + r.uploadDate].filter(Boolean).join('　') + (r.caption ? '\n📝 ' + r.caption.slice(0, 80) + (r.caption.length > 80 ? '…' : '') : '');
     $('videoForm').hidden = false;
     const kp = panel('knowledge'); await kp.ready; kp.reset();
     // 抓到的影片資料蓋過範本預設；抓不到就保留範本的值
@@ -365,7 +365,9 @@ $('videoPreviewBtn').onclick = async () => {
     if (r.uploadDate) kp.set('上傳日期', r.uploadDate);
     kp.set('課堂筆記通路', r.platform === 'IG' ? 'IG' : 'YouTube');
     kp.set('相關連結', r.url);
-    aiSuggest('knowledge', [r.title, r.author && '頻道：' + r.author, r.platform].filter(Boolean).join('\n'));
+    const shownTitle = $('videoTitle').value;
+    aiSuggest('knowledge', [r.title && '標題：' + r.title, r.author && '頻道：' + r.author, r.platform, r.caption && '內文：' + r.caption].filter(Boolean).join('\n'),
+      (t) => { if ($('videoTitle').value === shownTitle) $('videoTitle').value = t; }, !!r.caption);
     msg(r.title ? '選好欄位後按「確認送出」' : '抓不到標題（IG 常擋），可以自己填，或直接存');
   } catch (e) { msg(e.message); }
 };

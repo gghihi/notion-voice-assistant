@@ -38,7 +38,7 @@ async function getText(url, fetchImpl) {
 
 /** 抓影片資訊：{ title, author, thumbnail, uploadDate(YYYY-MM-DD) } */
 export async function fetchInfo(v, fetchImpl = fetch) {
-  const info = { title: null, author: null, thumbnail: null, uploadDate: null };
+  const info = { title: null, author: null, thumbnail: null, uploadDate: null, caption: null };
   if (v.platform === 'YouTube') {
     try {
       const o = JSON.parse(await getText('https://www.youtube.com/oembed?format=json&url=' + encodeURIComponent(v.url), fetchImpl));
@@ -63,7 +63,24 @@ export async function fetchInfo(v, fetchImpl = fetch) {
       info.title = (said ? said[1] : ogTitle)?.slice(0, 150) || null;
       const d = desc.match(/(\w+ \d{1,2}, \d{4})/);
       if (d) { const t = new Date(d[1] + ' UTC'); if (!isNaN(t)) info.uploadDate = t.toISOString().slice(0, 10); }
+      // 內文：og:description 通常是「… on Instagram: "內文"」
+      const cap = desc.match(/[:：]\s*["“]([\s\S]+?)["”]?\s*$/);
+      if (cap) info.caption = cap[1];
     } catch {}
+    // 主頁拿不到內文時，改試 IG 的嵌入頁（通常不用登入就看得到內文）
+    if (!info.caption) {
+      try {
+        const html = await getText(v.url + 'embed/captioned/', fetchImpl);
+        const cap = html.match(/class="Caption"[^>]*>([\s\S]*?)<div class="CaptionComments/) || html.match(/class="Caption"[^>]*>([\s\S]*?)<\/div>/);
+        if (cap) {
+          info.caption = decode(cap[1].replace(/<br\s*\/?>/g, '\n').replace(/<a[^>]*class="CaptionUsername"[^>]*>[\s\S]*?<\/a>/, '').replace(/<[^>]+>/g, '')).trim();
+        }
+        const user = html.match(/class="UsernameText"[^>]*>([^<]+)</);
+        if (user && !info.author) info.author = decode(user[1]).trim();
+        if (!info.thumbnail) { const img = html.match(/class="EmbeddedMediaImage"[^>]+src="([^"]+)"/); if (img) info.thumbnail = decode(img[1]); }
+      } catch {}
+    }
+    if (info.caption) info.caption = info.caption.replace(/\s+\n/g, '\n').slice(0, 1500);
   }
   if (info.uploadDate && !/^\d{4}-\d{2}-\d{2}$/.test(info.uploadDate)) info.uploadDate = null;
   return info;
@@ -89,6 +106,8 @@ export function buildPage(env, v, info, kind) {
         { object: 'block', type: 'embed', embed: { url: v.url } },
         { object: 'block', type: 'bookmark', bookmark: { url: v.url } },
       ];
+  // IG 內文也存進頁面，日後不用回 IG 也看得到
+  if (info.caption) children.push({ object: 'block', type: 'quote', quote: { rich_text: [{ type: 'text', text: { content: info.caption.slice(0, 1900) } }] } });
   const page = { parent: { type: 'data_source_id', data_source_id: env.KNOWLEDGE_DS }, properties: props, children };
   if (info.thumbnail && /^https:\/\//.test(info.thumbnail)) page.cover = { type: 'external', external: { url: info.thumbnail } };
   return page;
