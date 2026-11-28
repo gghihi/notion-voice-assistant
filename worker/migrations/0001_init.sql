@@ -23,3 +23,10 @@ CREATE TABLE saved (
   url TEXT,
   saved_at INTEGER NOT NULL
 );
+-- 整理庫：存進知識庫的項目（只留 7 天，和公佈欄分開，撕公佈欄不影響這裡）
+CREATE TABLE organize (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  title TEXT NOT NULL,
+  url TEXT,
+  saved_at INTEGER NOT NULL
+);

@@ -92,6 +92,52 @@ $('askNo').onclick = closeAsk;
 $('askBg').onclick = closeAsk;
 $('askYes').onclick = () => { Sound.play('tap'); setTimeout(closeAsk, 300); };
 
+// ===== 整理庫 =====
+const ORG_GROUPS = [['todo', '🔴 還沒整理'], ['doing', '🟡 整理中'], ['done', '🟢 已完成']];
+const ORG_LABEL = { todo: '還沒整理', doing: '整理中', done: '完成' };
+let orgItems = [];
+function isToday(ts) { const a = new Date(ts), b = new Date(); return a.toDateString() === b.toDateString(); }
+function paintOrganize() {
+  const count = (st) => orgItems.filter((i) => i.status === st).length;
+  $('orgToday').textContent = orgItems.filter((i) => isToday(i.savedAt)).length;
+  $('orgTodo').textContent = count('todo'); $('orgDoing').textContent = count('doing'); $('orgDone').textContent = count('done');
+  const list = $('orgList'); list.innerHTML = '';
+  if (!orgItems.length) { list.innerHTML = '<p class="empty-org">最近 7 天還沒存知識～去知識庫存一筆吧 📚</p>'; return; }
+  for (const [st, label] of ORG_GROUPS) {
+    const items = orgItems.filter((i) => (i.status === 'unknown' ? 'todo' : i.status) === st);
+    if (!items.length) continue;
+    const g = document.createElement('section'); g.className = 'org-group g-' + st;
+    const h = document.createElement('h3'); h.textContent = `${label}（${items.length}）`; g.append(h);
+    for (const it of items) {
+      const row = document.createElement('div'); row.className = 'org-item';
+      const title = document.createElement('a'); title.className = 'org-title'; title.textContent = it.title;
+      if (it.url && /^https:\/\/([\w-]+\.)?notion\.(so|com|site)\//.test(it.url)) { title.href = it.url; title.target = '_blank'; title.rel = 'noopener'; }
+      const meta = document.createElement('span'); meta.className = 'org-meta';
+      meta.textContent = (isToday(it.savedAt) ? '今天 ' : fmtDate(it.savedAt).split(' ')[0] + ' ') + `· 剩 ${daysLeft(it.savedAt)} 天`;
+      const seg = document.createElement('div'); seg.className = 'seg';
+      for (const s2 of ['todo', 'doing', 'done']) {
+        const b = document.createElement('button'); b.type = 'button'; b.textContent = ORG_LABEL[s2]; b.classList.add('segb');
+        if (s2 === it.status) b.classList.add('on');
+        b.onclick = async () => {
+          if (s2 === it.status) return;
+          const old = it.status; it.status = s2; paintOrganize();
+          try { await api('/api/organize/status', { id: it.id, status: s2 }); if (s2 === 'done') { celebrate(8); Sound.play('success'); } }
+          catch (e) { it.status = old; paintOrganize(); msg(e.message); }
+        };
+        seg.append(b);
+      }
+      row.append(title, meta, seg); g.append(row);
+    }
+    list.append(g);
+  }
+}
+async function loadOrganize() {
+  if (!getToken()) return;
+  $('orgList').innerHTML = '<p class="empty-org">讀取中…</p>';
+  try { orgItems = (await api('/api/organize')).items; paintOrganize(); }
+  catch (e) { $('orgList').innerHTML = ''; msg(e.message); }
+}
+
 // ===== 公佈欄 =====
 const DB_LABEL = { projects: '📁 專案庫', tasks: '✅ 任務庫', knowledge: '📚 知識庫' };
 let boardItems = [];
@@ -266,6 +312,8 @@ document.querySelectorAll('.tab').forEach((t) => {
     $('tab-note').hidden = t.dataset.tab !== 'note';
     $('tab-plan').hidden = t.dataset.tab !== 'plan';
     $('tab-video').hidden = t.dataset.tab !== 'video';
+    $('tab-org').hidden = t.dataset.tab !== 'org';
+    if (t.dataset.tab === 'org') loadOrganize();
     msg('');
   };
 });

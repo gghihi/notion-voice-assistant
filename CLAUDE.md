@@ -26,6 +26,7 @@ docs/（GitHub Pages，main 分支）──Bearer 通行證──► worker/（C
 - **AI**（`worker/src/ai.js`）：Gemini 經轉送站，`thinkingBudget: 0`、8 秒逾時、主／備用模型。只從現有選項挑（`filterSuggestions`）。失敗或額度用完回 `notice`，退回規則版（`when.js`）。`AI_SIMULATE_QUOTA="1"` 可模擬額度用完（測完要改回，不要 commit）。
 - **影片**（`worker/src/video.js`）：YouTube 用 oEmbed＋watch 頁；Threads 用 og 標籤（通路選項名稱是小寫 `threads`）；IG 用 og 標籤，拿不到內文改抓 `embed/captioned/`。作者＝影片發布者；上傳日期＝傳進 APP 的那天（台灣時間）。內文只給 AI 取標題，**不存進 Notion**。
 - **公佈欄**：存檔成功記到 Store（7 天）。`/api/board` 會檢查 Notion 是否已 in_trash 並同步移除。刪 Notion 只能刪公佈欄上的紀錄（`in_trash: true`）。
+- **整理庫**（`worker/src/organize.js`，表格 `organize`，和公佈欄分開）：知識庫存檔時加入，7 天後移除（Notion 保留）。狀態看 Notion：`Done` 勾選或觀看性質＝完成 → 完成；正在看／作筆記/做作業／看到一個段落 → 整理中；其他 → 還沒整理。APP 改狀態會寫回 Notion（只限整理庫裡的頁面）。Store 的 alarm 同時負責「每天台灣 22:00」的提醒（`digestAt`），全部完成就不推播。
 - **前端**：無建置步驟。`app.js`（主程式）、`fields.js`（欄位選擇器）、`sound.js`（WebAudio 合成音效與配樂）、`theme.js`。改前端後要把 `docs/sw.js` 的 `VERSION` 加一。
 
 ## 常用指令（在 `worker/` 內）

@@ -144,3 +144,7 @@ export function pageIdFromUrl(u) {
 export async function trashPage(env, pageId) {
   await call(env, '/pages/' + pageId, 'PATCH', { in_trash: true });
 }
+
+export async function updatePageProps(env, pageId, properties) {
+  await call(env, '/pages/' + pageId, 'PATCH', { properties });
+}

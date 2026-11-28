@@ -1,7 +1,8 @@
 // 後端入口：只開放少數幾個網址，每個（除了登入）都要有效通行證。
 import { checkPassword, issueToken, verifyToken } from './auth.js';
-import { checkDataSources, createNote, createTask, createPage, listTemplates, createPageWithTemplate, getDataSource, searchPages, getPage, pageTitle, pageIdFromUrl, trashPage } from './notion.js';
+import { checkDataSources, createNote, createTask, createPage, listTemplates, createPageWithTemplate, getDataSource, searchPages, getPage, pageTitle, pageIdFromUrl, trashPage, updatePageProps } from './notion.js';
 import { DBS, describe, toNotionProps, fromNotionProps } from './fields.js';
+import { STATUS_TO_NOTION } from './organize.js';
 import { detect, fetchInfo, buildPage, CHANNEL, resolveShare } from './video.js';
 import { parseWhen, twIso } from './when.js';
 import { aiTask, aiSuggest, aiNotice } from './ai.js';
@@ -33,6 +34,7 @@ async function cachedFields(env, db) {
 // 記到公佈欄；就算記失敗也不影響已經存好的 Notion 資料
 async function remember(env, db, title, pageUrl) {
   try { await store(env).addSaved({ db, title, url: pageUrl }); } catch (e) { console.log('board', e.message); }
+  if (db === 'knowledge') { try { await store(env).addOrganize({ title, url: pageUrl }); } catch (e) { console.log('organize', e.message); } }
 }
 
 // 範本編號：沒選回傳 null；選了但資料庫裡沒有回傳 false
@@ -96,6 +98,23 @@ export default {
           if (e.kind) return json({ props: {}, notice: aiNotice(e) }, 200, h);
           throw e;
         }
+      }
+      if (url.pathname === '/api/organize' && req.method === 'GET') {
+        return json({ items: await store(env).organizeWithStatus() }, 200, h);
+      }
+      if (url.pathname === '/api/organize/status' && req.method === 'POST') {
+        const body = await readJson(req);
+        const patch = STATUS_TO_NOTION[body?.status];
+        // 只能改「整理庫裡有的」頁面
+        const item = patch && await store(env).getOrganize(body.id);
+        const pid = item && pageIdFromUrl(item.url);
+        if (!pid) return json({ error: '找不到這筆，可能已經超過 7 天' }, 404, h);
+        const fields = await cachedFields(env, 'knowledge');
+        const props = { ...patch };
+        if (!fields.some((f) => f.name === '觀看性質')) delete props.觀看性質;
+        try { await updatePageProps(env, pid, props); }
+        catch (e) { if (e.status !== 400) throw e; delete props.Done; await updatePageProps(env, pid, props); } // 沒有 Done 欄位就只改觀看性質
+        return json({ ok: true }, 200, h);
       }
       if (url.pathname === '/api/board' && req.method === 'GET') {
         // 和 Notion 對一下：已經在 Notion 被丟進垃圾桶（或不見）的，從公佈欄一起拿掉

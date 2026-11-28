@@ -37,6 +37,7 @@
       <button class="tab on" data-tab="note">📁 專案庫</button>
       <button class="tab" data-tab="plan">✅ 任務庫</button>
       <button class="tab" data-tab="video">📚 知識庫</button>
+      <button class="tab" data-tab="org">🗂️ 整理庫</button>
     </div>
 
     <div id="tab-note">
@@ -95,6 +96,17 @@
       </div>
     </div>
 
+    <div id="tab-org" hidden>
+      <div class="org-head">
+        <div><b id="orgToday">0</b><span>今天存入</span></div>
+        <div><b id="orgTodo">0</b><span>還沒整理</span></div>
+        <div><b id="orgDoing">0</b><span>整理中</span></div>
+        <div><b id="orgDone">0</b><span>已完成</span></div>
+      </div>
+      <p class="hint">最近 7 天存進知識庫的內容。狀態跟著 Notion 的「觀看性質」和「Done」走；每天晚上 10 點，如果還有沒整理完的，會提醒你一次。7 天後從這裡消失，Notion 裡照樣保留。</p>
+      <div id="orgList"></div>
+    </div>
+
   </section>
 
   <div class="sheet-bg" id="sheetBg" hidden></div>
@@ -111,6 +123,7 @@
       <div class="set-row"><span>🔗 Notion 連線</span><button class="pill" id="checkBtn" type="button">檢查</button></div>
       <div class="set-row"><span>👋 登出</span><button class="pill danger" id="logoutBtn" type="button">登出</button></div>
     </div>
+
   </section>
   <div class="sheet-bg" id="boardBg" hidden></div>
   <section class="sheet board" id="board" hidden aria-label="公佈欄">

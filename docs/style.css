@@ -66,12 +66,12 @@ textarea { resize:vertical; min-height:120px; line-height:1.7; box-shadow:var(--
 input:focus, textarea:focus, select:focus { outline:none; box-shadow:4px 4px 0 var(--accent); }
 ::placeholder { color:var(--text-2); opacity:.75; }
 button { font:inherit; cursor:pointer; color:inherit; }
-#app button:not(.tab):not(.chip):not(.result):not(.small-btn), #loginBtn {
+#app button:not(.tab):not(.chip):not(.result):not(.small-btn):not(.segb), #loginBtn {
   border:2px solid var(--ink); border-radius:12px; padding:10px 18px; background:var(--yellow); color:#111; font-weight:800;
   box-shadow:var(--shadow-sm); transition:transform .1s, box-shadow .1s;
 }
-#app button:not(.tab):not(.chip):not(.result):not(.small-btn):hover, #loginBtn:hover { transform:translate(-1px,-1px); box-shadow:3px 3px 0 var(--ink); }
-#app button:not(.tab):not(.chip):not(.result):not(.small-btn):active, #loginBtn:active { transform:translate(2px,2px); box-shadow:none; }
+#app button:not(.tab):not(.chip):not(.result):not(.small-btn):not(.segb):hover, #loginBtn:hover { transform:translate(-1px,-1px); box-shadow:3px 3px 0 var(--ink); }
+#app button:not(.tab):not(.chip):not(.result):not(.small-btn):not(.segb):active, #loginBtn:active { transform:translate(2px,2px); box-shadow:none; }
 #app button.ghost { background:var(--paper) !important; color:var(--text) !important; }
 button.recording { background:#ff5a5a !important; color:#fff !important; animation:pulse 1.1s infinite; }
 @keyframes pulse { 50% { box-shadow:0 0 0 8px rgba(255,90,90,.25); } }
@@ -189,3 +189,28 @@ h1 { font-size:clamp(24px, 7.4vw, 34px); white-space:nowrap; }
 .ai-note[data-kind="wait"] { animation:pulseBg 1s ease-in-out infinite alternate; }
 @keyframes pulseBg { to { opacity:.55; } }
 #videoMeta { white-space:pre-line; }
+
+/* ===== 整理庫 ===== */
+body[data-tab="org"] { --accent:var(--c-blue); --accent-soft:var(--c-blue-bg); }
+.tab { font-size:13px; padding:8px 2px; }
+.org-head { display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; margin-bottom:12px; }
+.org-head > div { display:grid; place-items:center; padding:10px 4px; background:var(--paper); border:2px solid var(--ink); border-radius:14px; box-shadow:var(--shadow-sm); }
+.org-head b { font-size:26px; font-weight:900; line-height:1.1; color:var(--ink); }
+.org-head span { font-size:12px; color:var(--text-2); font-weight:700; }
+.org-head > div:nth-child(2) b { color:#e5484d; } .org-head > div:nth-child(3) b { color:var(--c-yellow, #cb912f); } .org-head > div:nth-child(4) b { color:var(--c-green); }
+.org-group { margin-top:18px; }
+.org-group h3 { margin:0 0 8px; font-size:16px; font-weight:900; color:var(--ink); }
+.org-item { display:grid; gap:6px; padding:12px 14px; margin-bottom:10px; background:var(--paper); border:2px solid var(--ink); border-radius:14px; box-shadow:var(--shadow-sm); animation:pop .25s ease; }
+.g-todo .org-item { border-left:8px solid #e5484d; } .g-doing .org-item { border-left:8px solid var(--yellow); } .g-done .org-item { border-left:8px solid var(--c-green); opacity:.8; }
+.org-title { font-weight:800; color:var(--text); text-decoration:none; line-height:1.4; }
+.org-title:hover { text-decoration:underline; }
+.g-done .org-title { text-decoration:line-through; text-decoration-color:var(--text-2); }
+.org-meta { font-size:12px; color:var(--text-2); }
+.seg { display:flex; border:2px solid var(--ink); border-radius:999px; overflow:hidden; width:max-content; }
+.seg button { border:0; background:var(--paper); padding:5px 12px; font-size:13px; font-weight:800; }
+.seg button + button { border-left:2px solid var(--ink); }
+.seg button.on { background:var(--accent); color:#fff; }
+.empty-org { text-align:center; padding:30px 0; color:var(--text-2); font-weight:700; }
+#app .seg button { background:var(--paper); color:var(--text); border:0; border-radius:0; box-shadow:none; padding:5px 12px; font-size:13px; font-weight:800; transform:none; }
+#app .seg button + button { border-left:2px solid var(--ink); }
+#app .seg button.on { background:var(--accent); color:#fff; }
