@@ -121,7 +121,8 @@ export async function fetchInfo(v, fetchImpl = fetch) {
     }
     if (info.caption) info.caption = info.caption.replace(/\s+\n/g, '\n').slice(0, 1500);
   }
-  if (info.uploadDate && !/^\d{4}-\d{2}-\d{2}$/.test(info.uploadDate)) info.uploadDate = null;
+  // 上傳日期一律用「傳進 APP 的那天」（台灣時間），不用影片原本的發布日
+  info.uploadDate = new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10);
   return info;
 }
 

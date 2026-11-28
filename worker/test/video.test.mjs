@@ -19,7 +19,8 @@ test('其他網址不收', () => {
 test('YouTube 資訊（模擬）', async () => {
   const fake = async (u) => ({ ok: true, text: async () => u.includes('oembed') ? '{"title":"影片A","author_name":"欸那個AJ"}' : '<meta itemprop="uploadDate" content="2026-11-01T08:00:00-07:00">' });
   const info = await fetchInfo(detect('https://youtu.be/dQw4w9WgXcQ'), fake);
-  assert.deepEqual([info.title, info.author, info.uploadDate], ['影片A', '欸那個AJ', '2026-11-01']);
+  assert.deepEqual([info.title, info.author], ['影片A', '欸那個AJ']);
+  assert.equal(info.uploadDate, new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10)); // 上傳日期＝今天
 });
 test('抓不到就留空', async () => {
   const info = await fetchInfo(detect('https://www.instagram.com/reel/X1/'), async () => ({ ok: false, status: 429 }));
