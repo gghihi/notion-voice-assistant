@@ -57,16 +57,24 @@ async function applyAi(db, props) {
     else if (!cur[k]) p.set(k, v);
   }
 }
+// 確認卡最上面那行：顯示 AI 做了什麼，或為什麼沒做
+function aiNote(db, text, kind = 'ok') {
+  const el = $('ai-' + db); if (!el) return;
+  el.hidden = !text; el.textContent = text || ''; el.dataset.kind = kind;
+}
 async function aiSuggest(db, text, onTitle) {
-  if (!aiEnabled() || !text) return;
+  if (!aiEnabled()) return aiNote(db, '');
+  if (!text) return;
+  aiNote(db, '✨ AI 整理中…', 'wait');
   try {
     const r = await api('/api/ai/suggest', { db, text });
-    if (r.notice) return msg('🤖 ' + r.notice);
+    if (r.notice) return aiNote(db, '🤖 ' + r.notice, 'warn');
     if (r.title && onTitle) onTitle(r.title);
     await applyAi(db, r.props);
-    const n = Object.values(r.props || {}).flat().length;
-    msg(n || r.title ? '✨ AI 幫你填了建議，看看要不要改' : '🤖 AI 沒有找到適合的分類');
-  } catch { /* AI 失敗不影響存檔 */ }
+    const filled = Object.keys(r.props || {});
+    if (r.title && onTitle) filled.unshift('標題');
+    aiNote(db, filled.length ? '✨ AI 幫你填了：' + filled.join('、') + '（都可以改）' : '🤖 AI 看過了，沒有找到適合的分類', filled.length ? 'ok' : 'warn');
+  } catch (e) { aiNote(db, '🤖 AI 沒回應：' + e.message, 'warn'); }
 }
 
 // 預設開啟；在設定裡可以關掉
@@ -230,7 +238,7 @@ $('noteNextBtn').onclick = () => {
   $('noteTitle').value = text.split('\n')[0].slice(0, 40);
   $('noteForm').hidden = false;
   panel('projects'); loadTemplates('projects');
-  msg(aiEnabled() ? '✨ AI 正在幫你整理…' : '選好欄位後按「確認送出」');
+  msg('選好欄位後按「確認送出」');
   const typed = $('noteTitle').value;
   aiSuggest('projects', text, (t) => { if ($('noteTitle').value === typed) $('noteTitle').value = t; });
 };
@@ -296,7 +304,8 @@ $('parseBtn').onclick = async () => {
     $('planForm').hidden = false;
     panel('tasks'); await loadTemplates('tasks');
     if (r.props && Object.keys(r.props).length) await applyAi('tasks', r.props);
-    msg((r.notice ? '🤖 ' + r.notice + '\n' : r.ai ? '✨ AI 幫你看懂了，' : '') + (r.at ? '選好欄位後按「確認送出」' : '沒聽出時間，請在「時間」欄自己選'));
+    aiNote('tasks', !aiEnabled() ? '' : r.notice ? '🤖 ' + r.notice : r.ai ? '✨ AI 幫你看懂了：' + ['要做什麼', r.at && '時間', ...Object.keys(r.props || {})].filter(Boolean).join('、') + '（都可以改）' : '', r.notice ? 'warn' : 'ok');
+    msg(r.at ? '選好欄位後按「確認送出」' : '沒聽出時間，請在「時間」欄自己選');
   } catch (e) { msg(e.message); }
 };
 

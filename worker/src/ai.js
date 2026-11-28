@@ -4,7 +4,7 @@
 import { twIso } from './when.js';
 
 export class AiError extends Error {
-  constructor(kind) { super('ai_' + kind); this.kind = kind; } // kind: quota（額度用完）/ off / fail
+  constructor(kind, detail = '') { super('ai_' + kind); this.kind = kind; this.detail = detail; } // kind: quota（額度用完）/ off / fail
 }
 
 async function callModel(env, model, prompt) {
@@ -17,25 +17,26 @@ async function callModel(env, model, prompt) {
     ? await env.GEMINI_PROXY.fetch('https://gemini' + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body })
     : await fetch('https://generativelanguage.googleapis.com' + path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY || '' }, body });
   if (res.status === 429) throw new AiError('quota');
-  if (!res.ok) throw new AiError('fail');
+  if (!res.ok) throw new AiError('fail', String(res.status));
   const data = await res.json();
   const text = data?.candidates?.[0]?.content?.parts?.map((p) => p.text).join('') || '';
-  try { return JSON.parse(text.replace(/^```(json)?|```$/g, '').trim()); } catch { throw new AiError('fail'); }
+  try { return JSON.parse(text.replace(/^```(json)?|```$/g, '').trim()); } catch { throw new AiError('fail', 'format'); }
 }
 
 /** 先試主要模型，失敗再試備用模型；兩個都額度用完就回報 quota */
 export async function askGemini(env, prompt) {
   if (env.AI_ENABLED === '0') throw new AiError('off');
   if (env.AI_SIMULATE_QUOTA === '1') throw new AiError('quota'); // 測試「額度用完」用
-  let quota = false;
+  let quota = false, detail = 'no_model';
   for (const model of [env.GEMINI_MODEL, env.GEMINI_FALLBACK_MODEL].filter(Boolean)) {
     try { return await callModel(env, model, prompt); }
-    catch (e) { if (e.kind === 'quota') quota = true; }
+    catch (e) { if (e.kind === 'quota') quota = true; detail = e.detail || e.message; }
   }
-  throw new AiError(quota ? 'quota' : 'fail');
+  throw new AiError(quota ? 'quota' : 'fail', detail);
 }
 
-export const aiNotice = (e) => (e?.kind === 'quota' ? 'AI 今天的免費額度用完了，先用一般方式處理（其他功能照常）' : e?.kind === 'off' ? null : 'AI 暫時沒回應，先用一般方式處理');
+export const aiNotice = (e) => (e?.kind === 'quota' ? 'AI 今天的免費額度用完了，先用一般方式處理（其他功能照常）'
+  : e?.kind === 'off' ? null : `AI 暫時沒回應（${e?.detail || e?.message || '未知'}），先用一般方式處理`);
 
 // 只保留真的存在的選項，避免 AI 自己發明
 function pick(value, field) {
@@ -64,7 +65,8 @@ export async function aiTask(env, text, fields, now = Date.now()) {
   const allow = ['行動種類'];
   const prompt = `你是行程助理。現在是台灣時間 ${twIso(now)}（星期${'日一二三四五六'[new Date(now + 8 * 3600000).getUTCDay()]}）。
 使用者說：「${text}」
-請回傳 JSON：{"title": 要做的事（簡短，不含時間詞）, "at": 開始時間（ISO 8601，帶 +08:00；聽不出時間就給 null，不要猜）, "行動種類": 從選項挑一個，不確定就 null}
+${TITLE_RULE}
+請回傳 JSON：{"title": 要做的事（照標題規則）, "at": 開始時間（ISO 8601，帶 +08:00；聽不出時間就給 null，不要猜）, "行動種類": 從選項挑一個，不確定就 null}
 ${optionsText(fields, allow)}`;
   const r = await askGemini(env, prompt);
   const at = typeof r?.at === 'string' ? Date.parse(r.at) : NaN;
@@ -75,23 +77,30 @@ ${optionsText(fields, allow)}`;
   };
 }
 
+const TITLE_RULE = `標題規則：去掉時間詞（今天、明天、下週三、晚上…）和動作／語氣詞（規劃、要做、想要、記得、幫我…），只留下事情或作品本身的名稱，英文縮寫可整理大小寫。
+例：「明天規劃s2 ep.1 錄yee集少一集」→「S2 EP.1 錄yee集少一集」；「下週想拍一支街訪影片問路人開心的事」→「街訪影片：路人的開心小事」。`;
+
 const SUGGEST = {
-  projects: { allow: ['種類', '專案領域關鍵字'], role: '專案企劃', wantTitle: true },
+  projects: { allow: ['專案狀態', '種類', '專案領域關鍵字'], role: '專案企劃', wantTitle: true, date: '執行日期' },
   knowledge: { allow: ['關鍵字', '課堂筆記類別', '重要度'], role: '知識整理', wantTitle: false },
 };
 
 /** 專案／知識庫：建議標題與分類（只從現有選項挑） */
-export async function aiSuggest(env, db, text, fields) {
+export async function aiSuggest(env, db, text, fields, now = Date.now()) {
   const cfg = SUGGEST[db];
   if (!cfg) throw new AiError('off');
   const keys = cfg.allow.map((n) => `"${n}": ${fields.find((f) => f.name === n)?.type === 'select' ? '一個選項或 null' : '選項陣列（最多 5 個，沒適合的就 []）'}`).join(', ');
-  const prompt = `你是${cfg.role}助理，幫使用者整理 Notion 資料。內容：「${text.slice(0, 3000)}」
-請回傳 JSON：{${cfg.wantTitle ? '"title": 簡潔有力的標題（20 字內）, ' : ''}${keys}}
-只能從下列選項挑，不要自己發明；不確定就留空。
+  const dateKey = cfg.date && fields.some((f) => f.name === cfg.date) ? cfg.date : null;
+  const prompt = `你是${cfg.role}助理，幫使用者整理 Notion 資料。現在是台灣時間 ${twIso(now)}。
+內容：「${text.slice(0, 3000)}」
+請回傳 JSON：{${cfg.wantTitle ? '"title": 標題（25 字內）, ' : ''}${dateKey ? `"${dateKey}": 內容提到的日期（YYYY-MM-DD，沒提到就 null）, ` : ''}${keys}}
+${cfg.wantTitle ? TITLE_RULE + '\n' : ''}分類只能從下列選項挑，不要自己發明；不確定就留空。
 ${optionsText(fields, cfg.allow)}`;
   const r = await askGemini(env, prompt);
+  const props = filterSuggestions(r, fields, cfg.allow);
+  if (dateKey && typeof r?.[dateKey] === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(r[dateKey])) props[dateKey] = r[dateKey];
   return {
     title: cfg.wantTitle && typeof r?.title === 'string' && r.title.trim() ? r.title.trim().slice(0, 100) : null,
-    props: filterSuggestions(r, fields, cfg.allow),
+    props,
   };
 }

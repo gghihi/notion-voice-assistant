@@ -184,3 +184,7 @@ h1 { font-size:clamp(24px, 7.4vw, 34px); white-space:nowrap; }
 .pill.danger-red { background:#ff5a5a; color:#fff; }
 #del { z-index:23; } #delBg { z-index:22; }
 #del .hint { font-size:12px; margin-top:12px; }
+.ai-note { margin:0; padding:8px 12px; border:2px dashed var(--ink); border-radius:12px; font-size:14px; font-weight:700; background:var(--yellow-soft); color:var(--text); }
+.ai-note[data-kind="warn"] { background:var(--soft); }
+.ai-note[data-kind="wait"] { animation:pulseBg 1s ease-in-out infinite alternate; }
+@keyframes pulseBg { to { opacity:.55; } }
