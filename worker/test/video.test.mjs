@@ -81,3 +81,20 @@ test('Threads 分享短網址 → 真正的貼文網址', async () => {
   const fail = await resolveShare(v, async () => { throw new Error('x'); });
   assert.equal(fail.share, true);
 });
+
+import { storyboardFrame, youtubeFrame } from '../src/video.js';
+test('YouTube 某一秒的預覽畫面位置', () => {
+  const spec = 'https://i.ytimg.com/sb/abc/storyboard3_L$L/$N.jpg?sqp=X|48#27#100#10#10#0#default#rs$A|80#45#100#10#10#2000#M$M#rs$B|160#90#100#5#5#2000#M$M#rs$C|320#180#100#3#3#2000#M$M#rs$D';
+  const f = storyboardFrame(spec, 25); // 第 12 格（每 2 秒一格），每張 9 格 → 第 2 張的第 4 格
+  assert.equal(f.url, 'https://i.ytimg.com/sb/abc/storyboard3_L3/M1.jpg?sqp=X&sigh=rs$D');
+  assert.deepEqual([f.x, f.y, f.w, f.h], [0, 180, 320, 180]);
+  assert.equal(storyboardFrame('', 3), null);
+});
+test('YouTube 畫面：從影片頁找到預覽圖並抓回來', async () => {
+  const spec = 'https://i.ytimg.com/sb/abcdefghijk/storyboard3_L$L/$N.jpg?sqp=X|320#180#10#3#3#1000#M$M#rs$D';
+  const fake = async (u) => u.includes('watch') ? { ok: true, text: async () => '..."playerStoryboardSpecRenderer":{"spec":"' + spec.replace(/&/g, '\\u0026') + '"}...' }
+    : { ok: true, arrayBuffer: async () => new Uint8Array([255, 216, 255]).buffer };
+  const f = await youtubeFrame('abcdefghijk', 4, fake);
+  assert.match(f.dataUrl, /^data:image\/jpeg;base64,/);
+  assert.deepEqual([f.x, f.y], [320, 180]);
+});

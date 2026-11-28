@@ -344,12 +344,46 @@ function listenYouTube() { // 請 YouTube 播放器回報目前時間
   const f = $('notePlayer').querySelector('iframe');
   if (f) f.contentWindow?.postMessage(JSON.stringify({ event: 'listening', id: 1 }), '*');
 }
-$('snapBtn').onclick = () => {
-  if (!curTarget) return msg('先點一下要放截圖的那一格（小重點或一般問題）');
+// 沒點選格子時，放到最後一個小重點（或最後一個問題）
+function fallbackTarget() {
+  const all = Object.values(noteItems).flat().filter((x) => !x.locked);
+  const pts = all.filter((x) => x.kind === 'point' && (x.subs || []).length);
+  if (pts.length) return pts[pts.length - 1].subs[pts[pts.length - 1].subs.length - 1];
+  const qa = all.filter((x) => x.kind === 'qa');
+  return qa.length ? qa[qa.length - 1] : null;
+}
+// 把預覽大圖裡的那一格切出來，放大一倍
+function cropFrame(f) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas'); c.width = f.w * 2; c.height = f.h * 2;
+      const g = c.getContext('2d'); g.imageSmoothingQuality = 'high';
+      g.drawImage(img, f.x, f.y, f.w, f.h, 0, 0, c.width, c.height);
+      resolve(c.toDataURL('image/jpeg', 0.9));
+    };
+    img.onerror = () => reject(new Error('畫面讀取失敗'));
+    img.src = f.dataUrl;
+  });
+}
+$('snapBtn').onclick = async () => {
+  const target = curTarget || fallbackTarget();
+  if (!target) return msg('先按「＋ 重點」或「＋ 一般問題」，再截圖');
   const t = Math.floor(ytTime), mm = Math.floor(t / 60), ss = String(t % 60).padStart(2, '0');
-  pendingExtra = ytId ? { caption: `⏱️ ${mm}:${ss}`, link: `https://youtu.be/${ytId}?t=${t}` } : {};
-  msg(ytId ? `⏱️ 記下 ${mm}:${ss}，請選剛剛的手機截圖` : '請選要放的圖片');
-  $('imgPick').click();
+  const extra = ytId ? { caption: `⏱️ ${mm}:${ss}`, link: `https://youtu.be/${ytId}?t=${t}` } : {};
+  if (ytId) {
+    $('snapBtn').disabled = true; msg(`📸 擷取 ${mm}:${ss} 的畫面中…`);
+    try {
+      const f = await api(`/api/video/frame?id=${ytId}&t=${t}`);
+      const data = await cropFrame(f);
+      (target.images ||= []).push({ data, ...extra });
+      saveDraft(); renderFields(currentSecVals());
+      Sound.play('pop');
+      return msg(`📸 已把 ${mm}:${ss} 的畫面放進筆記`);
+    } catch { msg('抓不到這一秒的畫面，改成從相簿選圖'); }
+    finally { $('snapBtn').disabled = false; }
+  }
+  curTarget = target; pendingExtra = extra; $('imgPick').click();
 };
 
 function buildPreset(sec, kind) {
